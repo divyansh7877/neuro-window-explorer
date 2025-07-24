@@ -9,7 +9,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Neuro-Window Explorer",
-  description: "Interactive exploration of neural calcium traces",
+  description: "Interactive exploration of neural traces",
 };
 
 export default function RootLayout({
