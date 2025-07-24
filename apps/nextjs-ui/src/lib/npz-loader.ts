@@ -1,69 +1,37 @@
 import { NPZData, WindowMetadata } from '@/types';
-import { parseNPZFile, createRealisticTraces } from './npz-parser';
+import { parseNPYFile } from './npz-parser';
 
-// Basic NPZ loader - simplified version
-export async function loadNPZData(url: string): Promise<NPZData> {
-  // If url is 'mock', generate mock data directly
-  if (url === 'mock') {
-    console.log('Generating mock NPZ data...');
-    
-    const numWindows = 50; // Match our sample metadata
-    const numSamples = 500;
-    
-    return {
-      traces: generateMockTraces(numWindows, numSamples),
-      label_seq: new Uint8Array(numWindows * 2 * numSamples),
-      encoded_labels: new Uint8Array(numWindows),
-      emb_mean: new Float32Array(numWindows * 64),
-      pca_xy: new Float32Array(numWindows * 2),
-      origin_keys: {}
-    };
-  }
+// Helper to load and parse a .npy file
+async function loadNPY(url: string): Promise<Float32Array | Uint8Array> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Failed to fetch NPY: ${url}`);
+  const arrayBuffer = await response.arrayBuffer();
+  const { array } = parseNPYFile(arrayBuffer);
+  return array;
+}
 
+// Loader for separate NPY files
+export async function loadNPZData(folder: string): Promise<NPZData> {
+  // folder should be like '/v2025_07_24f' or '' for root
+  const prefix = folder.endsWith('/') ? folder : folder + '/';
   try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch NPZ: ${response.statusText}`);
-    }
-    
-    console.log('Loading real NPZ data...');
-    const arrayBuffer = await response.arrayBuffer();
-    
-    try {
-      // Try to parse the actual NPZ file
-      const parsedData = await parseNPZFile(arrayBuffer);
-      
-      if (parsedData.traces) {
-        console.log('Successfully parsed NPZ file with real traces');
-        return {
-          traces: parsedData.traces as Float32Array,
-          label_seq: parsedData.label_seq as Uint8Array || new Uint8Array(0),
-          encoded_labels: parsedData.encoded_labels as Uint8Array || new Uint8Array(0),
-          emb_mean: parsedData.emb_mean as Float32Array || new Float32Array(0),
-          pca_xy: parsedData.pca_xy as Float32Array || new Float32Array(0),
-          origin_keys: {}
-        };
-      }
-    } catch (parseError) {
-      console.warn('NPZ parsing failed, using realistic traces:', parseError);
-    }
-    
-    // Fallback: create realistic traces based on your data structure
-    const numWindows = 32754; // From your real data
-    const traces = createRealisticTraces(numWindows);
-    
-    console.log('Using realistic trace generation');
+    const [traces, label_seq, encoded_labels, emb_mean, pca_xy] = await Promise.all([
+      loadNPY(prefix + 'traces.npy'),
+      loadNPY(prefix + 'label_seq.npy'),
+      loadNPY(prefix + 'encoded_labels.npy'),
+      loadNPY(prefix + 'emb_mean.npy'),
+      loadNPY(prefix + 'pca_xy.npy'),
+    ]);
     return {
-      traces,
-      label_seq: new Uint8Array(numWindows * 2 * 500),
-      encoded_labels: new Uint8Array(numWindows),
-      emb_mean: new Float32Array(numWindows * 64),
-      pca_xy: new Float32Array(numWindows * 2),
-      origin_keys: {}
+      traces: traces as Float32Array,
+      label_seq: label_seq as Uint8Array,
+      encoded_labels: encoded_labels as Uint8Array,
+      emb_mean: emb_mean as Float32Array,
+      pca_xy: pca_xy as Float32Array,
+      origin_keys: {},
     };
-    
   } catch (error) {
-    console.error('Error loading NPZ data:', error);
+    console.error('Error loading NPY data:', error);
     throw error;
   }
 }
@@ -71,7 +39,6 @@ export async function loadNPZData(url: string): Promise<NPZData> {
 // Generate realistic mock trace data (for sample data)
 function generateMockTraces(numWindows: number, numSamples: number = 500): Float32Array {
   const traces = new Float32Array(numWindows * numSamples);
-  
   for (let i = 0; i < numWindows; i++) {
     const baseSignal = Math.sin(i * 0.1) * 0.5; // Varying base signal
     for (let j = 0; j < numSamples; j++) {
@@ -82,7 +49,6 @@ function generateMockTraces(numWindows: number, numSamples: number = 500): Float
       traces[i * numSamples + j] = signal;
     }
   }
-  
   return traces;
 }
 
