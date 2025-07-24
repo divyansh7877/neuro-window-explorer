@@ -22,13 +22,13 @@ export default function Home() {
         setIsLoading(true);
         setError(null);
 
-        // Load metadata (using a sample CSV for now)
-        const metadataUrl = '/sample-metadata.csv'; // You'll need to add this file
+        // Load real metadata
+        const metadataUrl = '/real-metadata.csv';
         const metadata = await loadMetadata(metadataUrl);
         setMetadata(metadata);
 
-        // Load NPZ data (mock for now)
-        const npzUrl = '/sample-data.npz'; // You'll need to add this file
+        // Load real NPZ data
+        const npzUrl = '/real-data.npz';
         const npz = await loadNPZData(npzUrl);
         setNpzData(npz);
 
@@ -61,10 +61,10 @@ export default function Home() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-lg">Loading neuro-explorer data...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-lg text-gray-100">Loading neuro-explorer data...</p>
         </div>
       </div>
     );
@@ -72,10 +72,10 @@ export default function Home() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
-          <div className="text-red-600 text-xl mb-4">⚠️ Error Loading Data</div>
-          <p className="text-gray-600">{error}</p>
+          <div className="text-red-400 text-xl mb-4">⚠️ Error Loading Data</div>
+          <p className="text-gray-300">{error}</p>
           <p className="text-sm text-gray-500 mt-2">
             Make sure the data files are available in the public directory
           </p>
@@ -85,13 +85,13 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-900">
       <div className="container mx-auto px-4 py-8">
         <header className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+          <h1 className="text-4xl font-bold text-white mb-2">
             Neuro-Window Explorer
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-300">
             Interactive exploration of neural calcium traces
           </p>
         </header>
@@ -109,8 +109,8 @@ export default function Home() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* Scatter Plot */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-2xl font-semibold mb-4">PCA Embedding</h2>
+            <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+              <h2 className="text-2xl font-semibold mb-4 text-white">PCA Embedding</h2>
               <ScatterPlot
                 data={filteredMetadata}
                 selectedIds={selectedIds}
@@ -119,13 +119,13 @@ export default function Home() {
             </div>
 
             {/* Trace Statistics */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-2xl font-semibold mb-4">
+            <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+              <h2 className="text-2xl font-semibold mb-4 text-white">
                 Trace Statistics
               </h2>
               {selectedIds.length > 0 ? (
                 <div>
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className="text-sm text-gray-300 mb-4">
                     Selected {selectedIds.length} windows
                   </p>
                   <TracePlot
@@ -135,8 +135,8 @@ export default function Home() {
                   />
                 </div>
               ) : (
-                <div className="h-96 flex items-center justify-center bg-gray-50 rounded-lg">
-                  <p className="text-gray-500">
+                <div className="h-96 flex items-center justify-center bg-gray-700 rounded-lg">
+                  <p className="text-gray-400">
                     Select points in the scatter plot to view trace statistics
                   </p>
                 </div>
@@ -146,24 +146,24 @@ export default function Home() {
         </div>
 
         {/* Data Info */}
-        <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-xl font-semibold mb-4">Data Information</h3>
+        <div className="mt-8 bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+          <h3 className="text-xl font-semibold mb-4 text-white">Data Information</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
-              <span className="font-medium">Total Windows:</span>
-              <span className="ml-2">{metadata.length}</span>
+              <span className="font-medium text-gray-300">Total Windows:</span>
+              <span className="ml-2 text-white">{metadata.length}</span>
             </div>
             <div>
-              <span className="font-medium">Filtered:</span>
-              <span className="ml-2">{filteredMetadata.length}</span>
+              <span className="font-medium text-gray-300">Filtered:</span>
+              <span className="ml-2 text-white">{filteredMetadata.length}</span>
             </div>
             <div>
-              <span className="font-medium">Selected:</span>
-              <span className="ml-2">{selectedIds.length}</span>
+              <span className="font-medium text-gray-300">Selected:</span>
+              <span className="ml-2 text-white">{selectedIds.length}</span>
             </div>
             <div>
-              <span className="font-medium">Labels:</span>
-              <span className="ml-2">
+              <span className="font-medium text-gray-300">Labels:</span>
+              <span className="ml-2 text-white">
                 {new Set(metadata.map(m => m.label_code)).size}
               </span>
             </div>

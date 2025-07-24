@@ -20,16 +20,38 @@ function generateMockTraces(numWindows: number, numSamples: number = 500): Float
 
 // Basic NPZ loader - simplified version
 export async function loadNPZData(url: string): Promise<NPZData> {
+  // If url is 'mock', generate mock data directly
+  if (url === 'mock') {
+    console.log('Generating mock NPZ data...');
+    
+    const numWindows = 50; // Match our sample metadata
+    const numSamples = 500;
+    
+    return {
+      traces: generateMockTraces(numWindows, numSamples),
+      label_seq: new Uint8Array(numWindows * 2 * numSamples),
+      encoded_labels: new Uint8Array(numWindows),
+      emb_mean: new Float32Array(numWindows * 64),
+      pca_xy: new Float32Array(numWindows * 2),
+      origin_keys: {}
+    };
+  }
+
   try {
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch NPZ: ${response.statusText}`);
     }
     
+    // For real NPZ files, we'll need to implement proper parsing
     // For now, return mock data structure with realistic traces
-    console.warn('NPZ loading not fully implemented yet - using mock data');
+    console.warn('Real NPZ parsing not fully implemented yet - using mock data');
     
-    const numWindows = 50; // Match our sample metadata
+    // Get the actual number of windows from the metadata
+    const metadataResponse = await fetch('/real-metadata.csv');
+    const metadataText = await metadataResponse.text();
+    const lines = metadataText.split('\n').filter(line => line.trim());
+    const numWindows = lines.length - 1; // Subtract header
     const numSamples = 500;
     
     return {
