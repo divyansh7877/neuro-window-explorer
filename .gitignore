@@ -1,3 +1,10 @@
+# Ignore everything in public except versioned dataset folders
+apps/nextjs-ui/public/*
+!apps/nextjs-ui/public/v*/
+!apps/nextjs-ui/public/v*/*
+
+# Ignore other large or generated files as needed
+
 # Ignore data and versioned artifacts
 v*/
 data/
