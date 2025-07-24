@@ -6,7 +6,7 @@ A modern, browser-based toolkit for exploring neural calcium traces after HPC pr
 
 ## Features
 
-- **Input**: Preprocessed calcium-trace windows (`windows.npz`, `metadata.parquet` → CSV)
+- **Input**: Preprocessed calcium-trace windows (now as individual `.npy` files, plus metadata CSV/Parquet)
 - **Output**: Interactive web app with:
   - Lasso selection in PCA scatter plot
   - Mean ± std trace panel for selected points
@@ -19,8 +19,9 @@ A modern, browser-based toolkit for exploring neural calcium traces after HPC pr
 ## Quick Start
 
 ### 1. Prepare Data
-- Convert your `metadata.parquet` to CSV (see `convert_data.py`)
-- Place `real-data.npz` and `real-metadata.csv` in `apps/nextjs-ui/public/`
+- Export each array as a separate `.npy` file (see `export_code.py`)
+- Place all `.npy` files in a versioned folder in `apps/nextjs-ui/public/`
+- Place the corresponding metadata CSV/Parquet in the same folder or in `public/`
 
 ### 2. Run Locally
 ```bash
@@ -32,7 +33,7 @@ Visit [http://localhost:3000](http://localhost:3000)
 
 ### 3. Deploy to Vercel
 - Push to GitHub (see repo root for instructions)
-- [Set up Git LFS](https://git-lfs.github.com/) for large `.npz` files
+- **Set up Git LFS for all `.npy` and `.npz` files** (see below)
 - Import the repo on [vercel.com](https://vercel.com), set root to `apps/nextjs-ui`, and deploy
 
 ---
@@ -41,12 +42,19 @@ Visit [http://localhost:3000](http://localhost:3000)
 ```
 apps/nextjs-ui/
 ├── public/
-│   ├── real-data.npz         # Large NPZ file (use Git LFS)
-│   └── real-metadata.csv     # Metadata as CSV
+│   ├── v2025_07_24f/
+│   │   ├── traces.npy
+│   │   ├── label_seq.npy
+│   │   ├── encoded_labels.npy
+│   │   ├── emb_mean.npy
+│   │   ├── pca_xy.npy
+│   │   ├── metadata.parquet
+│   │   └── manifest.json
+│   └── ...
 ├── src/
 │   ├── app/                  # Next.js App Router
 │   ├── components/           # React components (ScatterPlot, TracePlot, LabelFilter)
-│   ├── lib/                  # Data loaders and NPZ parser
+│   ├── lib/                  # Data loaders and NPY parser
 │   └── types/                # TypeScript types
 ├── README.md
 └── ...
@@ -55,16 +63,37 @@ apps/nextjs-ui/
 ---
 
 ## Data Format
-- **real-data.npz**: Contains `traces` (N, 500), `label_seq`, `encoded_labels`, `emb_mean`, `pca_xy`, `origin_keys`
-- **real-metadata.csv**: Columns: `window_id`, `label_code`, `pca_x`, `pca_y`
+- **traces.npy**: shape (N, 500), dtype float32
+- **label_seq.npy**: shape (N, 2, 500), dtype uint8
+- **encoded_labels.npy**: shape (N,), dtype uint8
+- **emb_mean.npy**: shape (N, 64), dtype float32
+- **pca_xy.npy**: shape (N, 2), dtype float32
+- **metadata.parquet**: Columns: `window_id`, `label_code`, `pca_x`, `pca_y`
+
+---
+
+## Git LFS for Large Files
+
+**To track all .npy and .npz files with Git LFS:**
+```bash
+git lfs install
+git lfs track "*.npy"
+git lfs track "*.npz"
+git add .gitattributes
+# Add your .npy/.npz files as usual
+git add path/to/your/files/*.npy
+git add path/to/your/files/*.npz
+git commit -m "Track .npy and .npz files with Git LFS"
+git push
+```
+- Anyone cloning your repo will need [Git LFS](https://git-lfs.github.com/) installed.
+- For datasets >100MB, consider external storage (S3, GCS, etc.)
 
 ---
 
 ## Pending Tasks / TODO
-- [ ] **Full NPZ parsing in browser** (currently uses realistic generated traces)
 - [ ] **Cluster comparison panel**
 - [ ] **Export selected windows to CSV**
-- [ ] **Deploy with Git LFS for large files**
 - [ ] **Optional: External storage for very large datasets**
 - [ ] **Performance optimizations for large N**
 - [ ] **UI polish and accessibility improvements**
@@ -72,9 +101,8 @@ apps/nextjs-ui/
 ---
 
 ## Notes
-- For files >50MB, use [Git LFS](https://git-lfs.github.com/)
-- For datasets >100MB, consider external storage (S3, GCS, etc.)
-- See `convert_data.py` for data conversion utilities
+- See `export_code.py` for data conversion utilities
+- For browser compatibility, always export `.npy` files uncompressed
 
 ---
 

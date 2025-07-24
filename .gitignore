@@ -1,6 +1,7 @@
 # Ignore data and versioned artifacts
 v*/
 data/
+export_code.py
 
 # Ignore Python cache and virtual environments
 __pycache__/
