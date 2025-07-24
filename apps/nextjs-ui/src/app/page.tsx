@@ -7,6 +7,12 @@ import ScatterPlot from '@/components/ScatterPlot';
 import TracePlot from '@/components/TracePlot';
 import LabelFilter from '@/components/LabelFilter';
 
+// List of available dataset folders (update as needed)
+const DATASET_FOLDERS = [
+  { label: 'Latest (v2025_07_24f)', folder: '/v2025_07_24f', csv: '/real-metadata.csv' },
+  // Add more folders as needed
+];
+
 export default function Home() {
   const [metadata, setMetadata] = useState<WindowMetadata[]>([]);
   const [npzData, setNpzData] = useState<NPZData | null>(null);
@@ -15,23 +21,24 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [traceStats, setTraceStats] = useState<{ mean: number[], std: number[] }>({ mean: [], std: [] });
+  const [datasetIdx, setDatasetIdx] = useState(0);
 
+  // Load data when dataset changes
   useEffect(() => {
     async function loadData() {
       try {
         setIsLoading(true);
         setError(null);
+        setSelectedIds([]);
+        setSelectedLabels([]);
 
-        // Load real metadata
-        const metadataUrl = '/real-metadata.csv';
-        const metadata = await loadMetadata(metadataUrl);
+        const { folder, csv } = DATASET_FOLDERS[datasetIdx];
+        // Load metadata
+        const metadata = await loadMetadata(csv);
         setMetadata(metadata);
-
-        // Load real NPZ data
-        const npzUrl = '/real-data.npz';
-        const npz = await loadNPZData(npzUrl);
-        setNpzData(npz);
-
+        // Load NPY data from folder
+        const npzObj = await loadNPZData(folder);
+        setNpzData(npzObj);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data');
         console.error('Error loading data:', err);
@@ -39,9 +46,8 @@ export default function Home() {
         setIsLoading(false);
       }
     }
-
     loadData();
-  }, []);
+  }, [datasetIdx]);
 
   // Filter data based on selected labels
   const filteredMetadata = selectedLabels.length > 0 
@@ -59,31 +65,6 @@ export default function Home() {
     }
   }, [selectedIds, npzData, metadata]);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-lg text-gray-100">Loading neuro-explorer data...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-center">
-          <div className="text-red-400 text-xl mb-4">⚠️ Error Loading Data</div>
-          <p className="text-gray-300">{error}</p>
-          <p className="text-sm text-gray-500 mt-2">
-            Make sure the data files are available in the public directory
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-900">
       <div className="container mx-auto px-4 py-8">
@@ -94,8 +75,39 @@ export default function Home() {
           <p className="text-gray-300">
             Interactive exploration of neural calcium traces
           </p>
+          <div className="mt-4">
+            <label className="text-gray-400 mr-2 font-medium">Dataset version:</label>
+            <select
+              className="bg-gray-800 text-white border border-gray-700 rounded px-3 py-1"
+              value={datasetIdx}
+              onChange={e => setDatasetIdx(Number(e.target.value))}
+            >
+              {DATASET_FOLDERS.map((ds, idx) => (
+                <option value={idx} key={ds.label}>{ds.label}</option>
+              ))}
+            </select>
+          </div>
         </header>
 
+        {isLoading ? (
+          <div className="min-h-[40vh] flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto"></div>
+              <p className="mt-4 text-lg text-gray-100">Loading neuro-explorer data...</p>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="min-h-[40vh] flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-red-400 text-xl mb-4">⚠️ Error Loading Data</div>
+              <p className="text-gray-300">{error}</p>
+              <p className="text-sm text-gray-500 mt-2">
+                Make sure the data files are available in the public directory
+              </p>
+            </div>
+          </div>
+        ) : (
+        <>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Label Filter */}
           <div className="lg:col-span-1">
@@ -169,6 +181,8 @@ export default function Home() {
             </div>
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   );
