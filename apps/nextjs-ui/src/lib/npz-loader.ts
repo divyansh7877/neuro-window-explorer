@@ -1,5 +1,23 @@
 import { NPZData, WindowMetadata } from '@/types';
 
+// Generate realistic mock trace data
+function generateMockTraces(numWindows: number, numSamples: number = 500): Float32Array {
+  const traces = new Float32Array(numWindows * numSamples);
+  
+  for (let i = 0; i < numWindows; i++) {
+    const baseSignal = Math.sin(i * 0.1) * 0.5; // Varying base signal
+    for (let j = 0; j < numSamples; j++) {
+      const time = j / numSamples;
+      const signal = baseSignal + 
+                    Math.sin(time * 2 * Math.PI * 3) * 0.3 + // Oscillation
+                    Math.random() * 0.1; // Noise
+      traces[i * numSamples + j] = signal;
+    }
+  }
+  
+  return traces;
+}
+
 // Basic NPZ loader - simplified version
 export async function loadNPZData(url: string): Promise<NPZData> {
   try {
@@ -8,16 +26,18 @@ export async function loadNPZData(url: string): Promise<NPZData> {
       throw new Error(`Failed to fetch NPZ: ${response.statusText}`);
     }
     
-    // For now, return mock data structure
-    // TODO: Implement proper NPZ parsing
+    // For now, return mock data structure with realistic traces
     console.warn('NPZ loading not fully implemented yet - using mock data');
     
+    const numWindows = 50; // Match our sample metadata
+    const numSamples = 500;
+    
     return {
-      traces: new Float32Array(32754 * 500), // Mock data
-      label_seq: new Uint8Array(32754 * 2 * 500),
-      encoded_labels: new Uint8Array(32754),
-      emb_mean: new Float32Array(32754 * 64),
-      pca_xy: new Float32Array(32754 * 2),
+      traces: generateMockTraces(numWindows, numSamples),
+      label_seq: new Uint8Array(numWindows * 2 * numSamples),
+      encoded_labels: new Uint8Array(numWindows),
+      emb_mean: new Float32Array(numWindows * 64),
+      pca_xy: new Float32Array(numWindows * 2),
       origin_keys: {}
     };
   } catch (error) {

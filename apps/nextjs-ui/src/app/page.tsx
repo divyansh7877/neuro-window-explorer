@@ -5,11 +5,13 @@ import { WindowMetadata, NPZData } from '@/types';
 import { loadNPZData, loadMetadata, computeTraceStats } from '@/lib/npz-loader';
 import ScatterPlot from '@/components/ScatterPlot';
 import TracePlot from '@/components/TracePlot';
+import LabelFilter from '@/components/LabelFilter';
 
 export default function Home() {
   const [metadata, setMetadata] = useState<WindowMetadata[]>([]);
   const [npzData, setNpzData] = useState<NPZData | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectedLabels, setSelectedLabels] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [traceStats, setTraceStats] = useState<{ mean: number[], std: number[] }>({ mean: [], std: [] });
@@ -40,6 +42,11 @@ export default function Home() {
 
     loadData();
   }, []);
+
+  // Filter data based on selected labels
+  const filteredMetadata = selectedLabels.length > 0 
+    ? metadata.filter(item => selectedLabels.includes(item.label_code))
+    : metadata;
 
   // Compute trace stats when selection changes
   useEffect(() => {
@@ -89,40 +96,52 @@ export default function Home() {
           </p>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Scatter Plot */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-2xl font-semibold mb-4">PCA Embedding</h2>
-            <ScatterPlot
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Label Filter */}
+          <div className="lg:col-span-1">
+            <LabelFilter
               data={metadata}
-              selectedIds={selectedIds}
-              onSelectionChange={setSelectedIds}
+              selectedLabels={selectedLabels}
+              onFilterChange={setSelectedLabels}
             />
           </div>
 
-          {/* Trace Statistics */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-2xl font-semibold mb-4">
-              Trace Statistics
-            </h2>
-            {selectedIds.length > 0 ? (
-              <div>
-                <p className="text-sm text-gray-600 mb-4">
-                  Selected {selectedIds.length} windows
-                </p>
-                <TracePlot
-                  mean={traceStats.mean}
-                  std={traceStats.std}
-                  title={`Mean ± Std (${selectedIds.length} windows)`}
-                />
-              </div>
-            ) : (
-              <div className="h-96 flex items-center justify-center bg-gray-50 rounded-lg">
-                <p className="text-gray-500">
-                  Select points in the scatter plot to view trace statistics
-                </p>
-              </div>
-            )}
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Scatter Plot */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-semibold mb-4">PCA Embedding</h2>
+              <ScatterPlot
+                data={filteredMetadata}
+                selectedIds={selectedIds}
+                onSelectionChange={setSelectedIds}
+              />
+            </div>
+
+            {/* Trace Statistics */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-semibold mb-4">
+                Trace Statistics
+              </h2>
+              {selectedIds.length > 0 ? (
+                <div>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Selected {selectedIds.length} windows
+                  </p>
+                  <TracePlot
+                    mean={traceStats.mean}
+                    std={traceStats.std}
+                    title={`Mean ± Std (${selectedIds.length} windows)`}
+                  />
+                </div>
+              ) : (
+                <div className="h-96 flex items-center justify-center bg-gray-50 rounded-lg">
+                  <p className="text-gray-500">
+                    Select points in the scatter plot to view trace statistics
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -135,6 +154,10 @@ export default function Home() {
               <span className="ml-2">{metadata.length}</span>
             </div>
             <div>
+              <span className="font-medium">Filtered:</span>
+              <span className="ml-2">{filteredMetadata.length}</span>
+            </div>
+            <div>
               <span className="font-medium">Selected:</span>
               <span className="ml-2">{selectedIds.length}</span>
             </div>
@@ -142,12 +165,6 @@ export default function Home() {
               <span className="font-medium">Labels:</span>
               <span className="ml-2">
                 {new Set(metadata.map(m => m.label_code)).size}
-              </span>
-            </div>
-            <div>
-              <span className="font-medium">Data Size:</span>
-              <span className="ml-2">
-                {npzData ? `${(npzData.traces.length / 1024 / 1024).toFixed(1)} MB` : 'N/A'}
               </span>
             </div>
           </div>
