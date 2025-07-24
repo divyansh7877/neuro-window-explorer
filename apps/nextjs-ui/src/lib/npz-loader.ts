@@ -1,5 +1,6 @@
 import { NPZData, WindowMetadata } from '@/types';
 import { parseNPYFile } from './npz-parser';
+import JSZip from 'jszip';
 
 // Helper to load and parse a .npy file
 async function loadNPY(url: string): Promise<Float32Array | Uint8Array> {
@@ -10,30 +11,44 @@ async function loadNPY(url: string): Promise<Float32Array | Uint8Array> {
   return array;
 }
 
-// Loader for separate NPY files
+// Loader for a single .npz file
 export async function loadNPZData(folder: string): Promise<NPZData> {
-  // folder should be like '/v2025_07_24f' or '' for root
   const prefix = folder.endsWith('/') ? folder : folder + '/';
-  try {
-    const [traces, label_seq, encoded_labels, emb_mean, pca_xy] = await Promise.all([
-      loadNPY(prefix + 'traces.npy'),
-      loadNPY(prefix + 'label_seq.npy'),
-      loadNPY(prefix + 'encoded_labels.npy'),
-      loadNPY(prefix + 'emb_mean.npy'),
-      loadNPY(prefix + 'pca_xy.npy'),
-    ]);
-    return {
-      traces: traces as Float32Array,
-      label_seq: label_seq as Uint8Array,
-      encoded_labels: encoded_labels as Uint8Array,
-      emb_mean: emb_mean as Float32Array,
-      pca_xy: pca_xy as Float32Array,
-      origin_keys: {},
-    };
-  } catch (error) {
-    console.error('Error loading NPY data:', error);
-    throw error;
-  }
+  const url = prefix + 'windows.npz';
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Failed to fetch NPZ: ${url}`);
+  const blob = await response.blob();
+  const zip = await JSZip.loadAsync(blob);
+
+  const files = await Promise.all(
+    Object.keys(zip.files).map(async (filename) => {
+      if (filename.endsWith('.npy')) {
+        const file = zip.file(filename);
+        if (file) {
+          const arrayBuffer = await file.async('arraybuffer');
+          const { array, shape } = parseNPYFile(arrayBuffer);
+          return { filename: filename.replace('.npy', ''), array, shape };
+        }
+      }
+      return null;
+    })
+  );
+
+  const npzData: any = {};
+  files.forEach((file) => {
+    if (file) {
+      npzData[file.filename] = file.array;
+    }
+  });
+
+  return {
+    traces: npzData.traces as Float32Array,
+    label_seq: npzData.label_seq as Uint8Array,
+    encoded_labels: npzData.encoded_labels as Uint8Array,
+    emb_mean: npzData.emb_mean as Float32Array,
+    pca_xy: npzData.pca_xy as Float32Array,
+    origin_keys: {},
+  };
 }
 
 // Generate realistic mock trace data (for sample data)
