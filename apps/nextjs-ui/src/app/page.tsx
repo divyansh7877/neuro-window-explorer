@@ -73,7 +73,7 @@ export default function Home() {
             Neuro-Window Explorer
           </h1>
           <p className="text-gray-300">
-            Interactive exploration of neural calcium traces
+            Interactive exploration of neural traces and their embeddings
           </p>
           <div className="mt-4">
             <label className="text-gray-400 mr-2 font-medium">Dataset version:</label>

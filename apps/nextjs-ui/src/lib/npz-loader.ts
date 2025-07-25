@@ -1,5 +1,6 @@
 import { tableFromIPC } from 'apache-arrow';
 import { parseNPYFile } from './npz-parser';
+import type { NPZData, WindowMetadata } from '../types';
 
 // Helper to load and parse a .npy file
 async function loadNPY(url: string): Promise<Float32Array | Uint8Array> {

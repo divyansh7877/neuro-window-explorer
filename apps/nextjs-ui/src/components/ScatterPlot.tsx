@@ -66,7 +66,9 @@ export default function ScatterPlot({ data, onSelectionChange, selectedIds, pca_
 
     Plotly.newPlot(plotRef.current, plotData, layout, config);
 
-    plotRef.current.on('plotly_selected', (eventData: any) => {
+    // Attach event listeners to the Plotly graph div
+    const plotDiv = plotRef.current as any; // Type assertion to allow .on method
+    plotDiv.on('plotly_selected', (eventData: any) => {
       if (eventData && eventData.points) {
         const selectedIndices = eventData.points.map((p: any) => p.pointIndex);
         const newSelectedIds = selectedIndices.map((i: number) => data[i].window_id);
@@ -74,7 +76,7 @@ export default function ScatterPlot({ data, onSelectionChange, selectedIds, pca_
       }
     });
 
-    plotRef.current.on('plotly_deselect', () => {
+    plotDiv.on('plotly_deselect', () => {
       onSelectionChange([]);
     });
 
