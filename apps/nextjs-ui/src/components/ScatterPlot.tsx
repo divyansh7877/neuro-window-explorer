@@ -7,9 +7,10 @@ interface ScatterPlotProps {
   data: WindowMetadata[];
   onSelectionChange: (selectedIds: number[]) => void;
   selectedIds: number[];
+  pca_xy?: Float32Array;
 }
 
-export default function ScatterPlot({ data, onSelectionChange, selectedIds }: ScatterPlotProps) {
+export default function ScatterPlot({ data, onSelectionChange, selectedIds, pca_xy }: ScatterPlotProps) {
   const plotRef = useRef<HTMLDivElement>(null);
   const [plotlyLoaded, setPlotlyLoaded] = useState(false);
 
@@ -21,8 +22,8 @@ export default function ScatterPlot({ data, onSelectionChange, selectedIds }: Sc
       if (!plotRef.current || !data.length) return;
 
       // Prepare data for Plotly
-      const x = data.map(d => d.pca_x);
-      const y = data.map(d => d.pca_y);
+      const x = pca_xy ? pca_xy.filter((_, i) => i % 2 === 0) : data.map(d => d.pca_x);
+      const y = pca_xy ? pca_xy.filter((_, i) => i % 2 !== 0) : data.map(d => d.pca_y);
       const colors = data.map(d => d.label_code);
       const ids = data.map(d => d.window_id);
 
