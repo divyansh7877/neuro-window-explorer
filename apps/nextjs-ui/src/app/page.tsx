@@ -128,6 +128,7 @@ export default function Home() {
                 data={filteredMetadata}
                 selectedIds={selectedIds}
                 onSelectionChange={setSelectedIds}
+                pca_xy={npzData?.pca_xy}
               />
             </div>
 

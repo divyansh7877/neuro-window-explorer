@@ -13,8 +13,7 @@ async function loadNPY(url: string): Promise<Float32Array | Uint8Array> {
 
 // Loader for a single .npz file
 export async function loadNPZData(folder: string): Promise<NPZData> {
-  const prefix = folder.endsWith('/') ? folder : folder + '/';
-  const url = prefix + 'windows.npz';
+  const url = `${folder}windows.npz`;
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Failed to fetch NPZ: ${url}`);
   const blob = await response.blob();
