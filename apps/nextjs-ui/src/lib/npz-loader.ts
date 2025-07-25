@@ -28,7 +28,7 @@ export async function loadNPZData(folder: string): Promise<NPZData> {
   });
 
   const dataEntries = await Promise.all(dataPromises);
-  const npzData: any = Object.fromEntries(dataEntries.filter(([, val]) => val !== null));
+  const npzData: Record<string, Float32Array | Uint8Array> = Object.fromEntries(dataEntries.filter(([, val]) => val !== null));
 
   return {
     traces: npzData.traces as Float32Array,
@@ -38,22 +38,6 @@ export async function loadNPZData(folder: string): Promise<NPZData> {
     pca_xy: npzData.pca_xy as Float32Array,
     origin_keys: {},
   };
-}
-
-// Generate realistic mock trace data (for sample data)
-function generateMockTraces(numWindows: number, numSamples: number = 500): Float32Array {
-  const traces = new Float32Array(numWindows * numSamples);
-  for (let i = 0; i < numWindows; i++) {
-    const baseSignal = Math.sin(i * 0.1) * 0.5; // Varying base signal
-    for (let j = 0; j < numSamples; j++) {
-      const time = j / numSamples;
-      const signal = baseSignal + 
-                    Math.sin(time * 2 * Math.PI * 3) * 0.3 + // Oscillation
-                    Math.random() * 0.1; // Noise
-      traces[i * numSamples + j] = signal;
-    }
-  }
-  return traces;
 }
 
 // Load metadata from Parquet file

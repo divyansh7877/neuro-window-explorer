@@ -15,7 +15,7 @@ export function parseNPYFile(arrayBuffer: ArrayBuffer): { array: Float32Array | 
 
   // Read header
   const majorVersion = view.getUint8(6);
-  const minorVersion = view.getUint8(7);
+  // const minorVersion = view.getUint8(7); // Not used
 
   let headerLength: number;
   if (majorVersion === 1) {

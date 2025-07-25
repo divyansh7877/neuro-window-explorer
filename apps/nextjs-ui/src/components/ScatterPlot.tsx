@@ -15,7 +15,7 @@ export default function ScatterPlot({ data, onSelectionChange, selectedIds, pca_
   const [plotlyLoaded, setPlotlyLoaded] = useState(false);
 
   useEffect(() => {
-    import('plotly.js-dist').then((Plotly) => {
+    import('plotly.js-dist').then(() => {
       setPlotlyLoaded(true);
     });
   }, []);
@@ -23,79 +23,90 @@ export default function ScatterPlot({ data, onSelectionChange, selectedIds, pca_
   useEffect(() => {
     if (!plotlyLoaded || !plotRef.current || !data.length) return;
 
-    const Plotly = require('plotly.js-dist');
+    import('plotly.js-dist').then((PlotlyModule) => {
+      const Plotly = PlotlyModule.default;
+      const x = pca_xy ? pca_xy.filter((_, i) => i % 2 === 0) : data.map(d => d.pca_x);
+      const y = pca_xy ? pca_xy.filter((_, i) => i % 2 !== 0) : data.map(d => d.pca_y);
+      const colors = data.map(d => d.label_code);
+      const ids = data.map(d => d.window_id);
 
-    const x = pca_xy ? pca_xy.filter((_, i) => i % 2 === 0) : data.map(d => d.pca_x);
-    const y = pca_xy ? pca_xy.filter((_, i) => i % 2 !== 0) : data.map(d => d.pca_y);
-    const colors = data.map(d => d.label_code);
-    const ids = data.map(d => d.window_id);
+      const plotData = [{
+        x,
+        y,
+        mode: 'markers' as const,
+        type: 'scattergl' as const,
+        marker: {
+          size: 6,
+          color: colors,
+          colorscale: 'Viridis' as const,
+          showscale: true,
+          colorbar: {
+            title: 'Label Code'
+          }
+        },
+        text: ids.map(id => `Window ID: ${id}`),
+        hoverinfo: 'text',
+      }];
 
-    const plotData = [{
-      x,
-      y,
-      mode: 'markers' as const,
-      type: 'scattergl' as const,
-      marker: {
-        size: 6,
-        color: colors,
-        colorscale: 'Viridis' as const,
-        showscale: true,
-        colorbar: {
-          title: 'Label Code'
-        }
-      },
-      text: ids.map(id => `Window ID: ${id}`),
-      hoverinfo: 'text',
-    }];
+      const layout = {
+        title: 'PCA-XY Embedding',
+        xaxis: { title: 'PCA X' },
+        yaxis: { title: 'PCA Y' },
+        width: 900,
+        height: 600,
+        dragmode: 'lasso' as const,
+        selectdirection: 'any' as const
+      };
 
-    const layout = {
-      title: 'PCA-XY Embedding',
-      xaxis: { title: 'PCA X' },
-      yaxis: { title: 'PCA Y' },
-      width: 900,
-      height: 600,
-      dragmode: 'lasso' as const,
-      selectdirection: 'any' as const
-    };
+      const config = {
+        displayModeBar: true,
+        modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
+        displaylogo: false
+      };
 
-    const config = {
-      displayModeBar: true,
-      modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
-      displaylogo: false
-    };
+      if (plotRef.current) {
+        Plotly.newPlot(plotRef.current, plotData, layout, config);
 
-    Plotly.newPlot(plotRef.current, plotData, layout, config);
+        // Attach event listeners to the Plotly graph div
+        const plotDiv = plotRef.current as unknown as HTMLElement & { on: (event: string, callback: (eventData: unknown) => void) => void };
+        plotDiv.on('plotly_selected', (eventData: unknown) => {
+          const event = eventData as { points?: Array<{ pointIndex: number }> };
+          if (event && event.points) {
+            const selectedIndices = event.points.map((p) => p.pointIndex);
+            const newSelectedIds = selectedIndices
+              .map((i: number) => (i < data.length && data[i] ? data[i].window_id : undefined))
+              .filter((id: number | undefined): id is number => id !== undefined);
+            onSelectionChange(newSelectedIds);
+          }
+        });
 
-    // Attach event listeners to the Plotly graph div
-    const plotDiv = plotRef.current as any; // Type assertion to allow .on method
-    plotDiv.on('plotly_selected', (eventData: any) => {
-      if (eventData && eventData.points) {
-        const selectedIndices = eventData.points.map((p: any) => p.pointIndex);
-        const newSelectedIds = selectedIndices
-          .map((i: number) => (i < data.length && data[i] ? data[i].window_id : undefined))
-          .filter((id: number | undefined): id is number => id !== undefined);
-        onSelectionChange(newSelectedIds);
+        plotDiv.on('plotly_deselect', () => {
+          onSelectionChange([]);
+        });
       }
-    });
-
-    plotDiv.on('plotly_deselect', () => {
-      onSelectionChange([]);
     });
 
     return () => {
-      if (plotRef.current) {
-        Plotly.purge(plotRef.current);
+      const currentPlotRef = plotRef.current;
+      if (currentPlotRef) {
+        import('plotly.js-dist').then((PlotlyModule) => {
+          const Plotly = PlotlyModule.default;
+          Plotly.purge(currentPlotRef);
+        });
       }
     };
-  }, [data, plotlyLoaded]);
+  }, [data, plotlyLoaded, onSelectionChange, pca_xy]);
 
   useEffect(() => {
     if (!plotlyLoaded || !plotRef.current) return;
 
-    const Plotly = require('plotly.js-dist');
-    const selectedIndices = selectedIds.map(id => data.findIndex(d => d.window_id === id)).filter(i => i !== -1);
-
-    Plotly.restyle(plotRef.current, { selectedpoints: [selectedIndices] });
+    import('plotly.js-dist').then((PlotlyModule) => {
+      const Plotly = PlotlyModule.default;
+      const selectedIndices = selectedIds.map(id => data.findIndex(d => d.window_id === id)).filter(i => i !== -1);
+      if (plotRef.current) {
+        Plotly.restyle(plotRef.current, { selectedpoints: [selectedIndices] });
+      }
+    });
   }, [selectedIds, data, plotlyLoaded]);
 
   if (!plotlyLoaded) {
