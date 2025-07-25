@@ -30,8 +30,9 @@ export function parseNPYFile(arrayBuffer: ArrayBuffer): { array: Float32Array | 
   console.log('[NPY] NPY header string:', header);
 
   // Extract shape and dtype from header
-  const shapeMatch = header.match(/shape\s*:\s*\(([^)]*)\)/);
-  const dtypeMatch = header.match(/descr\s*:\s*['\"]([^'\"]+)['\"]/);
+  // Allow optional quotes around keys (e.g., 'shape': or "shape":)
+  const shapeMatch = header.match(/["']?shape["']?\s*:\s*\(([^)]*)\)/);
+  const dtypeMatch = header.match(/["']?descr["']?\s*:\s*['\"]([^'\"]+)['\"]/);
 
   if (!shapeMatch || !dtypeMatch) {
     throw new Error('Invalid NPY header');

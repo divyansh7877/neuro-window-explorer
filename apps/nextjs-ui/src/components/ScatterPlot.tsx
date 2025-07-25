@@ -71,7 +71,9 @@ export default function ScatterPlot({ data, onSelectionChange, selectedIds, pca_
     plotDiv.on('plotly_selected', (eventData: any) => {
       if (eventData && eventData.points) {
         const selectedIndices = eventData.points.map((p: any) => p.pointIndex);
-        const newSelectedIds = selectedIndices.map((i: number) => data[i].window_id);
+        const newSelectedIds = selectedIndices
+          .map((i: number) => (i < data.length && data[i] ? data[i].window_id : undefined))
+          .filter((id: number | undefined): id is number => id !== undefined);
         onSelectionChange(newSelectedIds);
       }
     });

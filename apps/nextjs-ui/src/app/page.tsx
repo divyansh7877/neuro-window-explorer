@@ -43,6 +43,9 @@ function HomeContent() {
         const metadata = await loadMetadata(csv);
         console.log('[Neuro-Explorer] Loaded metadata:', metadata && metadata.length, metadata?.slice?.(0, 5));
         setMetadata(metadata);
+        // Select all labels by default
+        const allLabels = Array.from(new Set(metadata.map(m => m.label_code)));
+        setSelectedLabels(allLabels);
         // Load NPY data from folder
         const npzObj = await loadNPZData(folder);
         console.log('[Neuro-Explorer] Loaded NPZ data:', npzObj);
