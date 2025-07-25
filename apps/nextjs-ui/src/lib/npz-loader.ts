@@ -64,8 +64,16 @@ export async function loadMetadata(url: string): Promise<WindowMetadata[]> {
       throw new Error(`Failed to fetch metadata: ${response.statusText}`);
     }
     
+    // Dynamic import to avoid Node.js bundle issues
+    const { readParquet } = await import('parquet-wasm/bundler');
+    
     const arrayBuffer = await response.arrayBuffer();
-    const table = tableFromIPC(arrayBuffer);
+    const parquetUint8Array = new Uint8Array(arrayBuffer);
+    
+    // Read Parquet file using parquet-wasm
+    const wasmTable = readParquet(parquetUint8Array);
+    const table = tableFromIPC(wasmTable.intoIPCStream());
+    
     const metadata: WindowMetadata[] = [];
 
     for (const row of table) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import React from 'react';
 import { WindowMetadata, NPZData } from '@/types';
 import { loadNPZData, loadMetadata, computeTraceStats } from '@/lib/npz-loader';
 import ScatterPlot from '@/components/ScatterPlot';
@@ -13,7 +14,8 @@ const DATASET_FOLDERS = [
   // Add more folders as needed
 ];
 
-export default function Home() {
+function HomeContent() {
+  console.log('[Neuro-Explorer] Home component mounted');
   const [metadata, setMetadata] = useState<WindowMetadata[]>([]);
   const [npzData, setNpzData] = useState<NPZData | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -23,8 +25,11 @@ export default function Home() {
   const [traceStats, setTraceStats] = useState<{ mean: number[], std: number[] }>({ mean: [], std: [] });
   const [datasetIdx, setDatasetIdx] = useState(0);
 
+  console.log('[Neuro-Explorer] Component render - datasetIdx:', datasetIdx, 'isLoading:', isLoading);
+
   // Load data when dataset changes
   useEffect(() => {
+    console.log('[Neuro-Explorer] useEffect for data loading triggered');
     async function loadData() {
       try {
         setIsLoading(true);
@@ -33,21 +38,30 @@ export default function Home() {
         setSelectedLabels([]);
 
         const { folder, csv } = DATASET_FOLDERS[datasetIdx];
+        console.log('[Neuro-Explorer] About to fetch manifest:', `${folder}manifest.json`);
         // Load metadata
         const metadata = await loadMetadata(csv);
+        console.log('[Neuro-Explorer] Loaded metadata:', metadata && metadata.length, metadata?.slice?.(0, 5));
         setMetadata(metadata);
         // Load NPY data from folder
         const npzObj = await loadNPZData(folder);
+        console.log('[Neuro-Explorer] Loaded NPZ data:', npzObj);
         setNpzData(npzObj);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data');
-        console.error('Error loading data:', err);
+        console.error('[Neuro-Explorer] Error loading data:', err);
       } finally {
         setIsLoading(false);
+        console.log('[Neuro-Explorer] Loading complete. isLoading:', false);
       }
     }
     loadData();
   }, [datasetIdx]);
+
+  // Test useEffect to see if useEffect works at all
+  useEffect(() => {
+    console.log('[Neuro-Explorer] Test useEffect with no dependencies - component mounted/hydrated');
+  }, []);
 
   // Filter data based on selected labels
   const filteredMetadata = selectedLabels.length > 0 
@@ -64,6 +78,8 @@ export default function Home() {
       setTraceStats({ mean: [], std: [] });
     }
   }, [selectedIds, npzData, metadata]);
+
+  console.log('[Neuro-Explorer] About to return JSX - isLoading:', isLoading, 'error:', error);
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -186,5 +202,61 @@ export default function Home() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function Home() {
+  const [isClient, setIsClient] = useState(false);
+  const [testCounter, setTestCounter] = useState(0);
+
+  // Test basic JavaScript execution
+  console.log('[Neuro-Explorer] About to set timeout');
+  setTimeout(() => {
+    console.log('[Neuro-Explorer] setTimeout executed - basic JS works');
+    console.log('[Neuro-Explorer] React available?', typeof React !== 'undefined');
+    console.log('[Neuro-Explorer] useState available?', typeof useState === 'function');
+    console.log('[Neuro-Explorer] useEffect available?', typeof useEffect === 'function');
+  }, 1000);
+
+  console.log('[Neuro-Explorer] testCounter:', testCounter);
+
+  useEffect(() => {
+    console.log('[Neuro-Explorer] Setting isClient to true');
+    setIsClient(true);
+  }, []);
+
+  console.log('[Neuro-Explorer] Home wrapper - isClient:', isClient);
+
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-lg text-gray-100">Initializing client...</p>
+          <button 
+            onClick={() => {
+              console.log('[Neuro-Explorer] Button clicked - testing useState');
+              setTestCounter(c => c + 1);
+            }}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Test useState (Count: {testCounter})
+          </button>
+          <button 
+            onClick={() => {
+              console.log('[Neuro-Explorer] Manually setting isClient to true');
+              setIsClient(true);
+            }}
+            className="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+          >
+            Bypass useEffect - Start App
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <HomeContent />
   );
 }
