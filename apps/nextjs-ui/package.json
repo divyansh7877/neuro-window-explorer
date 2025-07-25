@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@types/plotly.js": "^3.0.2",
+    "apache-arrow": "^21.0.0",
     "jszip": "^3.10.1",
     "ndarray-js": "^1.0.3",
     "next": "15.4.3",

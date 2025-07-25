@@ -9,8 +9,7 @@ import LabelFilter from '@/components/LabelFilter';
 
 // List of available dataset folders (update as needed)
 const DATASET_FOLDERS = [
-  { label: 'Default Dataset', folder: '/', csv: '/real-metadata.csv' },
-  { label: 'v2025_07_24f', folder: '/v2025_07_24f/', csv: '/v2025_07_24f/real-metadata.csv' },
+  { label: 'v2025_07_24f', folder: '/v2025_07_24f/', csv: '/v2025_07_24f/metadata.parquet' },
   // Add more folders as needed
 ];
 

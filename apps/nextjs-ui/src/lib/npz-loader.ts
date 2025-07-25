@@ -1,6 +1,5 @@
-import { NPZData, WindowMetadata } from '@/types';
+import { tableFromIPC } from 'apache-arrow';
 import { parseNPYFile } from './npz-parser';
-import JSZip from 'jszip';
 
 // Helper to load and parse a .npy file
 async function loadNPY(url: string): Promise<Float32Array | Uint8Array> {
@@ -11,34 +10,24 @@ async function loadNPY(url: string): Promise<Float32Array | Uint8Array> {
   return array;
 }
 
-// Loader for a single .npz file
+// Loader for data based on manifest.json
 export async function loadNPZData(folder: string): Promise<NPZData> {
-  const url = `${folder}windows.npz`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Failed to fetch NPZ: ${url}`);
-  const blob = await response.blob();
-  const zip = await JSZip.loadAsync(blob);
+  const manifestUrl = `${folder}manifest.json`;
+  const manifestResponse = await fetch(manifestUrl);
+  if (!manifestResponse.ok) throw new Error(`Failed to fetch manifest: ${manifestUrl}`);
+  const manifest = await manifestResponse.json();
 
-  const files = await Promise.all(
-    Object.keys(zip.files).map(async (filename) => {
-      if (filename.endsWith('.npy')) {
-        const file = zip.file(filename);
-        if (file) {
-          const arrayBuffer = await file.async('arraybuffer');
-          const { array, shape } = parseNPYFile(arrayBuffer);
-          return { filename: filename.replace('.npy', ''), array, shape };
-        }
-      }
-      return null;
-    })
-  );
-
-  const npzData: any = {};
-  files.forEach((file) => {
-    if (file) {
-      npzData[file.filename] = file.array;
+  const dataPromises = Object.entries(manifest).map(async ([key, filename]) => {
+    if (typeof filename === 'string' && filename.endsWith('.npy')) {
+      const url = `${folder}${filename}`;
+      const array = await loadNPY(url);
+      return [key, array];
     }
+    return [key, null];
   });
+
+  const dataEntries = await Promise.all(dataPromises);
+  const npzData: any = Object.fromEntries(dataEntries.filter(([, val]) => val !== null));
 
   return {
     traces: npzData.traces as Float32Array,
@@ -66,7 +55,7 @@ function generateMockTraces(numWindows: number, numSamples: number = 500): Float
   return traces;
 }
 
-// Load metadata from CSV file (simplified)
+// Load metadata from Parquet file
 export async function loadMetadata(url: string): Promise<WindowMetadata[]> {
   try {
     const response = await fetch(url);
@@ -74,19 +63,20 @@ export async function loadMetadata(url: string): Promise<WindowMetadata[]> {
       throw new Error(`Failed to fetch metadata: ${response.statusText}`);
     }
     
-    const text = await response.text();
-    const lines = text.split('\n').filter(line => line.trim());
-    const headers = lines[0].split(',');
-    
-    return lines.slice(1).map(line => {
-      const values = line.split(',');
-      return {
-        window_id: parseInt(values[0]),
-        label_code: parseInt(values[1]),
-        pca_x: parseFloat(values[2]),
-        pca_y: parseFloat(values[3])
-      };
-    });
+    const arrayBuffer = await response.arrayBuffer();
+    const table = tableFromIPC(arrayBuffer);
+    const metadata: WindowMetadata[] = [];
+
+    for (const row of table) {
+        metadata.push({
+            window_id: row.window_id,
+            label_code: row.label_code,
+            pca_x: row.pca_x,
+            pca_y: row.pca_y,
+        });
+    }
+
+    return metadata;
   } catch (error) {
     console.error('Error loading metadata:', error);
     throw error;

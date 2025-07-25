@@ -21,7 +21,7 @@ after HPC preprocessing and exploring them through a modern React web UI.
 
 | Step | Tech | Artefact | Notes |
 |------|------|----------|-------|
-| **HPC notebook** | Python (`numpy`, `polars`, `scikit‑learn`) | `windows.npz`, `metadata.parquet`, `manifest.json` | 90 MB bundle; versioned folders `vYYYY‑MM‑DD` |
+| **HPC notebook** | Python (`numpy`, `polars`, `scikit‑learn`) | `traces.npy`, `label_seq.npy`, `pca_xy.npy`, `metadata.parquet`, `manifest.json` | 90 MB bundle; versioned folders `vYYYY‑MM‑DD` |
 | **Static storage** | Git LFS (in repo)
  or **S3 + CloudFront** | CDN URL | no backend needed |
 | **Web client** | **Next.js + React 18 + Vite + TypeScript** | — | pulls the NPZ once, keeps data in JS typed arrays |
@@ -38,9 +38,11 @@ after HPC preprocessing and exploring them through a modern React web UI.
 neuro-explorer/
 ├─ data/
 │   └─ v2025-07-24/
-│      ├─ windows.npz           # traces, label_seq, embeddings, PCA
-│      ├─ metadata.parquet      # table used for filters / joins
-│      └─ manifest.json         # describes the bundle
+│      ├─ traces.npy
+│      ├─ label_seq.npy
+│      ├─ pca_xy.npy
+│      ├─ metadata.parquet
+│      └─ manifest.json
 ├─ apps/
 │   ├─ nextjs-ui/               # production React client
 │   └─ streamlit-proto/         # quick Python prototype
@@ -86,8 +88,8 @@ vercel deploy --prod # free prod URL
 
 ### Front‑end
 - [x] React + Tailwind skeleton (Vite)
-- [ ] DataProvider: fetch & cache `windows.npz` (ndarray‑js / npy‑wasm)
-- [ ] Scatter plot with Plotly `scattergl` + lasso selection
+- [x] DataProvider: fetch & cache `.npy` files (apache-arrow, npy-wasm)
+- [x] Scatter plot with Plotly `scattergl` + lasso selection
 - [ ] Mean ± std trace panel (line + shaded area)
 - [ ] Compare clusters panel
 - [ ] Download selection as CSV
