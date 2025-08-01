@@ -89,8 +89,8 @@ export default function ScatterPlot({ data, onSelectionChange, selectedIds, pca_
     });
 
     return () => {
-      const currentPlotRef = plotRef.current;
-      if (currentPlotRef) {
+      if (plotRef.current) {
+        const currentPlotRef = plotRef.current;
         import('plotly.js-dist').then((PlotlyModule) => {
           const Plotly = PlotlyModule.default;
           Plotly.purge(currentPlotRef);

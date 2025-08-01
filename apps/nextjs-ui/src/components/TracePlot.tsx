@@ -29,7 +29,18 @@ export default function TracePlot({
 
       const x = Array.from({ length: mean.length }, (_, i) => i);
       
-      let plotData: any[] = [];
+      let plotData: Array<{
+        x: number[];
+        y: number[];
+        mode: 'lines';
+        type: 'scatter';
+        name: string;
+        line?: { color: string; width: number };
+        opacity?: number;
+        showlegend?: boolean;
+        fill?: 'toself';
+        fillcolor?: string;
+      }> = [];
       
       if (showIndividualTraces && alignedTraces.length > 0) {
         // Plot individual aligned traces
@@ -79,7 +90,7 @@ export default function TracePlot({
             type: 'scatter' as const,
             fill: 'toself' as const,
             fillcolor: 'rgba(65,105,225,0.2)',
-            line: { color: 'rgba(255,255,255,0)' },
+            line: { color: 'rgba(255,255,255,0)', width: 1 },
             name: '±1 Std. Dev.',
             showlegend: true
           }
