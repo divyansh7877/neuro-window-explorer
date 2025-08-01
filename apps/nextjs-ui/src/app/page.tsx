@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import React from 'react';
 import { WindowMetadata, NPZData } from '@/types';
-import { loadNPZData, loadMetadata, computeTraceStats } from '@/lib/npz-loader';
+import { loadNPZData, loadMetadata, computeTraceStats, alignTraces } from '@/lib/npz-loader';
 import ScatterPlot from '@/components/ScatterPlot';
 import TracePlot from '@/components/TracePlot';
 import LabelFilter from '@/components/LabelFilter';
@@ -20,9 +20,17 @@ function HomeContent() {
   const [npzData, setNpzData] = useState<NPZData | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [selectedLabels, setSelectedLabels] = useState<number[]>([]);
+  
+  // Clear selections when filter changes
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [selectedLabels]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [traceStats, setTraceStats] = useState<{ mean: number[], std: number[] }>({ mean: [], std: [] });
+  const [alignedTraceData, setAlignedTraceData] = useState<{ alignedTraces: number[][], peakPositions: number[], mean: number[], std: number[] }>({ alignedTraces: [], peakPositions: [], mean: [], std: [] });
+  const [plotType1, setPlotType1] = useState<'mean' | 'aligned' | 'individual'>('mean');
+  const [plotType2, setPlotType2] = useState<'mean' | 'aligned' | 'individual'>('individual');
   const [datasetIdx, setDatasetIdx] = useState(0);
 
   console.log('[Neuro-Explorer] Component render - datasetIdx:', datasetIdx, 'isLoading:', isLoading);
@@ -74,11 +82,17 @@ function HomeContent() {
   // Compute trace stats when selection changes
   useEffect(() => {
     if (selectedIds.length > 0 && npzData) {
+      // Use full metadata for window IDs since traces array corresponds to full dataset
       const windowIds = metadata.map(m => m.window_id);
       const stats = computeTraceStats(npzData.traces, selectedIds, windowIds);
       setTraceStats(stats);
+      
+      // Also compute aligned traces
+      const alignedData = alignTraces(npzData.traces, selectedIds, windowIds);
+      setAlignedTraceData(alignedData);
     } else {
       setTraceStats({ mean: [], std: [] });
+      setAlignedTraceData({ alignedTraces: [], peakPositions: [], mean: [], std: [] });
     }
   }, [selectedIds, npzData, metadata]);
 
@@ -150,20 +164,85 @@ function HomeContent() {
               />
             </div>
 
-            {/* Trace Statistics */}
+            {/* Trace Plot 1 */}
             <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
-              <h2 className="text-2xl font-semibold mb-4 text-white">
-                Trace Statistics
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-semibold text-white">
+                  Trace Plot 1
+                </h2>
+                <div className="flex items-center space-x-4">
+                  <label className="text-sm text-gray-300">Plot Type:</label>
+                  <select
+                    className="bg-gray-700 text-white border border-gray-600 rounded px-3 py-1 text-sm"
+                    value={plotType1}
+                    onChange={(e) => setPlotType1(e.target.value as 'mean' | 'aligned' | 'individual')}
+                  >
+                    <option value="mean">Mean ± Std</option>
+                    <option value="aligned">Aligned Traces</option>
+                    <option value="individual">Individual Traces</option>
+                  </select>
+                </div>
+              </div>
               {selectedIds.length > 0 ? (
                 <div>
                   <p className="text-sm text-gray-300 mb-4">
                     Selected {selectedIds.length} windows
                   </p>
                   <TracePlot
-                    mean={traceStats.mean}
-                    std={traceStats.std}
-                    title={`Mean ± Std (${selectedIds.length} windows)`}
+                    mean={plotType1 === 'mean' ? traceStats.mean : alignedTraceData.mean}
+                    std={plotType1 === 'mean' ? traceStats.std : alignedTraceData.std}
+                    title={
+                      plotType1 === 'mean' ? `Mean ± Std (${selectedIds.length} windows)` :
+                      plotType1 === 'aligned' ? `Aligned Traces (${selectedIds.length} windows)` :
+                      `Individual Traces (${selectedIds.length} windows)`
+                    }
+                    alignedTraces={alignedTraceData.alignedTraces}
+                    showIndividualTraces={plotType1 !== 'mean'}
+                  />
+                </div>
+              ) : (
+                <div className="h-96 flex items-center justify-center bg-gray-700 rounded-lg">
+                  <p className="text-gray-400">
+                    Select points in the scatter plot to view trace statistics
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Trace Plot 2 */}
+            <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-semibold text-white">
+                  Trace Plot 2
+                </h2>
+                <div className="flex items-center space-x-4">
+                  <label className="text-sm text-gray-300">Plot Type:</label>
+                  <select
+                    className="bg-gray-700 text-white border border-gray-600 rounded px-3 py-1 text-sm"
+                    value={plotType2}
+                    onChange={(e) => setPlotType2(e.target.value as 'mean' | 'aligned' | 'individual')}
+                  >
+                    <option value="mean">Mean ± Std</option>
+                    <option value="aligned">Aligned Traces</option>
+                    <option value="individual">Individual Traces</option>
+                  </select>
+                </div>
+              </div>
+              {selectedIds.length > 0 ? (
+                <div>
+                  <p className="text-sm text-gray-300 mb-4">
+                    Selected {selectedIds.length} windows
+                  </p>
+                  <TracePlot
+                    mean={plotType2 === 'mean' ? traceStats.mean : (plotType2 === 'individual' ? [] : alignedTraceData.mean)}
+                    std={plotType2 === 'mean' ? traceStats.std : (plotType2 === 'individual' ? [] : alignedTraceData.std)}
+                    title={
+                      plotType2 === 'mean' ? `Mean ± Std (${selectedIds.length} windows)` :
+                      plotType2 === 'aligned' ? `Aligned Traces (${selectedIds.length} windows)` :
+                      `Individual Traces (${selectedIds.length} windows)`
+                    }
+                    alignedTraces={alignedTraceData.alignedTraces}
+                    showIndividualTraces={plotType2 !== 'mean'}
                   />
                 </div>
               ) : (

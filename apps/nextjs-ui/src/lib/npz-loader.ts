@@ -120,4 +120,117 @@ export function computeTraceStats(
   }
   
   return { mean, std };
+}
+
+// Detect peaks in a trace
+export function detectPeaks(trace: number[], minProminence: number = 0.05): number[] {
+  const peaks: number[] = [];
+  const traceMin = Math.min(...trace);
+  const traceMax = Math.max(...trace);
+  const range = traceMax - traceMin;
+  const prominence = range * minProminence;
+  
+  // Simple peak detection - find local minima
+  for (let i = 1; i < trace.length - 1; i++) {
+    // Look for local minima (negative peaks)
+    const current = trace[i];
+    const left = trace[i - 1];
+    const right = trace[i + 1];
+    
+    // Check if this is a local minimum
+    if (current < left && current < right) {
+      // Simple prominence check - just make sure it's significantly below neighbors
+      const avgNeighbor = (left + right) / 2;
+      const depth = avgNeighbor - current;
+      
+      if (depth >= prominence) {
+        peaks.push(i);
+      }
+    }
+  }
+  
+  return peaks;
+}
+
+// Align traces based on their primary peak
+export function alignTraces(
+  traces: Float32Array, 
+  selectedIds: number[], 
+  windowIds: number[]
+): { alignedTraces: number[][], peakPositions: number[], mean: number[], std: number[] } {
+  if (selectedIds.length === 0) {
+    return { alignedTraces: [], peakPositions: [], mean: [], std: [] };
+  }
+  
+  const numSamples = 500;
+  const selectedIndices = selectedIds.map(id => windowIds.indexOf(id)).filter(i => i !== -1);
+  
+  if (selectedIndices.length === 0) {
+    return { alignedTraces: [], peakPositions: [], mean: [], std: [] };
+  }
+  
+  // Extract individual traces
+  const individualTraces = selectedIndices.map(idx => 
+    Array.from(traces.slice(idx * numSamples, (idx + 1) * numSamples))
+  );
+  
+  // Detect peaks for each trace
+  const peakPositions: number[] = [];
+  const alignedTraces: number[][] = [];
+  
+  for (const trace of individualTraces) {
+    const peaks = detectPeaks(trace);
+    if (peaks.length > 0) {
+      // Use the most prominent peak (deepest minimum)
+      const primaryPeak = peaks.reduce((min, peak) => 
+        trace[peak] < trace[min] ? peak : min, peaks[0]
+      );
+      peakPositions.push(primaryPeak);
+      
+      // Align trace so peak is at center (250)
+      const shift = 250 - primaryPeak;
+      const alignedTrace = new Array(numSamples).fill(0);
+      
+      for (let i = 0; i < numSamples; i++) {
+        const sourceIndex = i - shift;
+        if (sourceIndex >= 0 && sourceIndex < numSamples) {
+          alignedTrace[i] = trace[sourceIndex];
+        } else {
+          // Left and right padding: use zeros
+          alignedTrace[i] = 0;
+        }
+      }
+      
+      alignedTraces.push(alignedTrace);
+    } else {
+      // If no peak found, use original trace
+      peakPositions.push(250);
+      alignedTraces.push(trace);
+    }
+  }
+  
+  // Compute mean and std of aligned traces
+  const mean = new Array(numSamples).fill(0);
+  const std = new Array(numSamples).fill(0);
+  
+  // Compute mean
+  for (let i = 0; i < numSamples; i++) {
+    let sum = 0;
+    for (let j = 0; j < alignedTraces.length; j++) {
+      sum += alignedTraces[j][i];
+    }
+    mean[i] = sum / alignedTraces.length;
+  }
+  
+  // Compute std
+  for (let i = 0; i < numSamples; i++) {
+    let sumSq = 0;
+    for (let j = 0; j < alignedTraces.length; j++) {
+      const diff = alignedTraces[j][i] - mean[i];
+      sumSq += diff * diff;
+    }
+    std[i] = Math.sqrt(sumSq / alignedTraces.length);
+  }
+  
+  return { alignedTraces, peakPositions, mean, std };
 } 

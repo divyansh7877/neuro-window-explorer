@@ -6,9 +6,17 @@ interface TracePlotProps {
   mean: number[];
   std: number[];
   title?: string;
+  alignedTraces?: number[][];
+  showIndividualTraces?: boolean;
 }
 
-export default function TracePlot({ mean, std, title = "Mean ± Std Trace" }: TracePlotProps) {
+export default function TracePlot({ 
+  mean, 
+  std, 
+  title = "Mean ± Std Trace",
+  alignedTraces = [],
+  showIndividualTraces = false
+}: TracePlotProps) {
   const plotRef = useRef<HTMLDivElement>(null);
   const [plotlyLoaded, setPlotlyLoaded] = useState(false);
 
@@ -21,27 +29,62 @@ export default function TracePlot({ mean, std, title = "Mean ± Std Trace" }: Tr
 
       const x = Array.from({ length: mean.length }, (_, i) => i);
       
-      const plotData = [
-        {
-          x,
-          y: mean,
-          mode: 'lines' as const,
-          type: 'scatter' as const,
-          name: 'Mean',
-          line: { color: 'royalblue', width: 2 }
-        },
-        {
-          x: [...x, ...x.slice().reverse()],
-          y: [...mean.map((m, i) => m - std[i]), ...mean.map((m, i) => m + std[i]).reverse()],
-          mode: 'lines' as const,
-          type: 'scatter' as const,
-          fill: 'toself' as const,
-          fillcolor: 'rgba(65,105,225,0.2)',
-          line: { color: 'rgba(255,255,255,0)' },
-          name: '±1 Std. Dev.',
-          showlegend: true
+      let plotData: any[] = [];
+      
+      if (showIndividualTraces && alignedTraces.length > 0) {
+        // Plot individual aligned traces
+        alignedTraces.forEach((trace, index) => {
+          plotData.push({
+            x,
+            y: trace,
+            mode: 'lines' as const,
+            type: 'scatter' as const,
+            name: `Trace ${index + 1}`,
+            line: { 
+              color: `rgba(65,105,225,${0.3 + (0.4 / alignedTraces.length)})`, 
+              width: 1 
+            },
+            opacity: 0.7,
+            showlegend: false
+          });
+        });
+        
+        // Add mean trace on top only if mean data is provided
+        if (mean.length > 0) {
+          plotData.push({
+            x,
+            y: mean,
+            mode: 'lines' as const,
+            type: 'scatter' as const,
+            name: 'Mean',
+            line: { color: 'red', width: 3 },
+            showlegend: true
+          });
         }
-      ];
+      } else {
+        // Original mean ± std plot
+        plotData = [
+          {
+            x,
+            y: mean,
+            mode: 'lines' as const,
+            type: 'scatter' as const,
+            name: 'Mean',
+            line: { color: 'royalblue', width: 2 }
+          },
+          {
+            x: [...x, ...x.slice().reverse()],
+            y: [...mean.map((m, i) => m - std[i]), ...mean.map((m, i) => m + std[i]).reverse()],
+            mode: 'lines' as const,
+            type: 'scatter' as const,
+            fill: 'toself' as const,
+            fillcolor: 'rgba(65,105,225,0.2)',
+            line: { color: 'rgba(255,255,255,0)' },
+            name: '±1 Std. Dev.',
+            showlegend: true
+          }
+        ];
+      }
 
       const layout = {
         title,
@@ -65,7 +108,7 @@ export default function TracePlot({ mean, std, title = "Mean ± Std Trace" }: Tr
         }
       };
     });
-  }, [mean, std, title]);
+  }, [mean, std, title, alignedTraces, showIndividualTraces]);
 
   if (!plotlyLoaded) {
     return (

@@ -25,8 +25,10 @@ export default function ScatterPlot({ data, onSelectionChange, selectedIds, pca_
 
     import('plotly.js-dist').then((PlotlyModule) => {
       const Plotly = PlotlyModule.default;
-      const x = pca_xy ? pca_xy.filter((_, i) => i % 2 === 0) : data.map(d => d.pca_x);
-      const y = pca_xy ? pca_xy.filter((_, i) => i % 2 !== 0) : data.map(d => d.pca_y);
+      // Use metadata PCA coordinates directly for filtered data
+      const x = data.map(d => d.pca_x);
+      const y = data.map(d => d.pca_y);
+      
       const colors = data.map(d => d.label_code);
       const ids = data.map(d => d.window_id);
 
