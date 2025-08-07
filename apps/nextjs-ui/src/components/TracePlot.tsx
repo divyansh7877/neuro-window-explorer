@@ -25,9 +25,13 @@ export default function TracePlot({
     import('plotly.js-dist').then((Plotly) => {
       setPlotlyLoaded(true);
       
-      if (!plotRef.current || mean.length === 0) return;
+      if (!plotRef.current) return;
+      const seriesLength = mean.length > 0
+        ? mean.length
+        : (alignedTraces.length > 0 ? alignedTraces[0].length : (std.length > 0 ? std.length : 0));
+      if (seriesLength === 0) return;
 
-      const x = Array.from({ length: mean.length }, (_, i) => i);
+      const x = Array.from({ length: seriesLength }, (_, i) => i);
       
       let plotData: Array<{
         x: number[];
@@ -132,7 +136,7 @@ export default function TracePlot({
     );
   }
 
-  if (mean.length === 0) {
+  if (mean.length === 0 && (!alignedTraces || alignedTraces.length === 0)) {
     return (
       <div className="w-full h-96 flex items-center justify-center bg-gray-50 rounded-lg">
         <p className="text-gray-500">No trace data to display</p>

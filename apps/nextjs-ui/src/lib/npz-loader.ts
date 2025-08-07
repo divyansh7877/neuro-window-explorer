@@ -1,6 +1,6 @@
 import { tableFromIPC } from 'apache-arrow';
 import { parseNPYFile } from './npz-parser';
-import type { NPZData, WindowMetadata } from '../types';
+import type { NPZData, WindowMetadata, AlignmentMethod } from '../types';
 
 // Helper to load and parse a .npy file
 async function loadNPY(url: string): Promise<Float32Array | Uint8Array> {
@@ -130,22 +130,19 @@ export function detectPeaks(trace: number[], minProminence: number = 0.05): numb
   const range = traceMax - traceMin;
   const prominence = range * minProminence;
   
-  // Simple peak detection - find local minima
+  // Simple peak detection - find local extrema
   for (let i = 1; i < trace.length - 1; i++) {
-    // Look for local minima (negative peaks)
     const current = trace[i];
     const left = trace[i - 1];
     const right = trace[i + 1];
-    
-    // Check if this is a local minimum
-    if (current < left && current < right) {
-      // Simple prominence check - just make sure it's significantly below neighbors
-      const avgNeighbor = (left + right) / 2;
-      const depth = avgNeighbor - current;
-      
-      if (depth >= prominence) {
-        peaks.push(i);
-      }
+    const avgNeighbor = (left + right) / 2;
+    const depth = avgNeighbor - current; // negative peak depth
+    const height = current - avgNeighbor; // positive peak height
+
+    // Consider both negative and positive peaks; filter later by method
+    if ((current < left && current < right && depth >= prominence) ||
+        (current > left && current > right && height >= prominence)) {
+      peaks.push(i);
     }
   }
   
@@ -154,9 +151,10 @@ export function detectPeaks(trace: number[], minProminence: number = 0.05): numb
 
 // Align traces based on their primary peak
 export function alignTraces(
-  traces: Float32Array, 
-  selectedIds: number[], 
-  windowIds: number[]
+  traces: Float32Array,
+  selectedIds: number[],
+  windowIds: number[],
+  method: AlignmentMethod = 'neg-peak'
 ): { alignedTraces: number[][], peakPositions: number[], mean: number[], std: number[] } {
   if (selectedIds.length === 0) {
     return { alignedTraces: [], peakPositions: [], mean: [], std: [] };
@@ -174,38 +172,72 @@ export function alignTraces(
     Array.from(traces.slice(idx * numSamples, (idx + 1) * numSamples))
   );
   
-  // Detect peaks for each trace
+  // Detect alignment anchors for each trace
   const peakPositions: number[] = [];
   const alignedTraces: number[][] = [];
   
-  for (const trace of individualTraces) {
-    const peaks = detectPeaks(trace);
-    if (peaks.length > 0) {
-      // Use the most prominent peak (deepest minimum)
-      const primaryPeak = peaks.reduce((min, peak) => 
-        trace[peak] < trace[min] ? peak : min, peaks[0]
-      );
-      peakPositions.push(primaryPeak);
-      
-      // Align trace so peak is at center (250)
-      const shift = 250 - primaryPeak;
-      const alignedTrace = new Array(numSamples).fill(0);
-      
-      for (let i = 0; i < numSamples; i++) {
-        const sourceIndex = i - shift;
-        if (sourceIndex >= 0 && sourceIndex < numSamples) {
-          alignedTrace[i] = trace[sourceIndex];
-        } else {
-          // Left and right padding: use zeros
-          alignedTrace[i] = 0;
-        }
-      }
-      
-      alignedTraces.push(alignedTrace);
-    } else {
-      // If no peak found, use original trace
+  if (method === 'none') {
+    for (const trace of individualTraces) {
       peakPositions.push(250);
       alignedTraces.push(trace);
+    }
+  } else if (method === 'xcorr') {
+    // Cross-correlation alignment to the mean of all traces
+    // Compute reference as simple average
+    const reference = new Array(numSamples).fill(0);
+    for (let i = 0; i < numSamples; i++) {
+      let s = 0;
+      for (let j = 0; j < individualTraces.length; j++) s += individualTraces[j][i];
+      reference[i] = s / individualTraces.length;
+    }
+    const maxLag = 100; // limit search
+    function computeShiftByXcorr(trace: number[], ref: number[]): number {
+      let bestLag = 0;
+      let bestScore = -Infinity;
+      for (let lag = -maxLag; lag <= maxLag; lag++) {
+        let score = 0;
+        for (let i = 0; i < numSamples; i++) {
+          const j = i - lag;
+          if (j >= 0 && j < numSamples) score += trace[j] * ref[i];
+        }
+        if (score > bestScore) { bestScore = score; bestLag = lag; }
+      }
+      return bestLag;
+    }
+    for (const trace of individualTraces) {
+      const shift = computeShiftByXcorr(trace, reference);
+      const anchor = 250 - shift;
+      peakPositions.push(Math.max(0, Math.min(numSamples - 1, Math.round(anchor))));
+      const alignedTrace = new Array(numSamples).fill(0);
+      for (let i = 0; i < numSamples; i++) {
+        const sourceIndex = i - shift;
+        if (sourceIndex >= 0 && sourceIndex < numSamples) alignedTrace[i] = trace[sourceIndex];
+      }
+      alignedTraces.push(alignedTrace);
+    }
+  } else {
+    // Peak-based alignment: negative or positive peak
+    for (const trace of individualTraces) {
+      const peaks = detectPeaks(trace);
+      if (peaks.length > 0) {
+        let primaryPeak = peaks[0];
+        if (method === 'neg-peak') {
+          primaryPeak = peaks.reduce((best, idx) => trace[idx] < trace[best] ? idx : best, primaryPeak);
+        } else {
+          primaryPeak = peaks.reduce((best, idx) => trace[idx] > trace[best] ? idx : best, primaryPeak);
+        }
+        peakPositions.push(primaryPeak);
+        const shift = 250 - primaryPeak;
+        const alignedTrace = new Array(numSamples).fill(0);
+        for (let i = 0; i < numSamples; i++) {
+          const sourceIndex = i - shift;
+          if (sourceIndex >= 0 && sourceIndex < numSamples) alignedTrace[i] = trace[sourceIndex];
+        }
+        alignedTraces.push(alignedTrace);
+      } else {
+        peakPositions.push(250);
+        alignedTraces.push(trace);
+      }
     }
   }
   

@@ -12,6 +12,7 @@ A modern, browser-based toolkit for exploring neural calcium traces after HPC pr
   - Mean ± std trace panel for selected points
   - Label-based filtering
   - Responsive dark mode UI
+  - Multiple alignment methods applied to all trace plots (global selector)
   - (Planned) Cluster comparison, CSV export, and more
 
 ---
@@ -20,8 +21,13 @@ A modern, browser-based toolkit for exploring neural calcium traces after HPC pr
 
 ### 1. Prepare Data
 - Export each array as a separate `.npy` file (see `export_code.py`)
-- Place all `.npy` files in a versioned folder in `apps/nextjs-ui/public/`
-- Place the corresponding metadata CSV/Parquet in the same folder or in `public/`
+- Create a dataset folder under `apps/nextjs-ui/public/<dataset_name>/`
+- Place into that folder:
+  - `manifest.json`
+  - `metadata.parquet`
+  - all `.npy` files referenced by the manifest
+
+The app will automatically list all dataset folders that contain both `manifest.json` and `metadata.parquet`.
 
 ### 2. Run Locally
 ```bash
@@ -32,9 +38,15 @@ npm run dev
 Visit [http://localhost:3000](http://localhost:3000)
 
 ### 3. Deploy to Vercel
-- Push to GitHub (see repo root for instructions)
-- **Set up Git LFS for all `.npy` and `.npz` files** (see below)
-- Import the repo on [vercel.com](https://vercel.com), set root to `apps/nextjs-ui`, and deploy
+- Push to GitHub (this app is in a monorepo).
+- **Set up Git LFS for all `.npy` and `.npz` files** (see below).
+- In Vercel project settings:
+  - Framework preset: Next.js
+  - Root Directory: `apps/nextjs-ui`
+  - Install Command: `npm install`
+  - Build Command: `npm run build`
+  - Output Directory: `.next`
+  - Environment: Node.js Runtime (not Edge)
 
 ---
 
@@ -69,6 +81,17 @@ apps/nextjs-ui/
 - **emb_mean.npy**: shape (N, 64), dtype float32
 - **pca_xy.npy**: shape (N, 2), dtype float32
 - **metadata.parquet**: Columns: `window_id`, `label_code`, `pca_x`, `pca_y`
+
+---
+
+## Alignment Methods
+Use the global Alignment dropdown above the trace plots:
+- `None`: original traces (no alignment)
+- `Negative peak`: align each trace by its deepest local minimum
+- `Positive peak`: align each trace by its highest local maximum
+- `Cross-correlation`: align each trace to the average reference by maximizing cross-correlation within a limited lag window
+
+Both trace panels (mean ± std and overlap/individual) reflect the chosen alignment.
 
 ---
 

@@ -21,6 +21,9 @@ export interface TraceData {
   samples: number[];
 }
 
+// Alignment methods for trace synchronization
+export type AlignmentMethod = 'none' | 'neg-peak' | 'pos-peak' | 'xcorr';
+
 export interface SelectionState {
   selectedIds: number[];
   isComputing: boolean;

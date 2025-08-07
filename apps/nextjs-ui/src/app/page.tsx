@@ -2,16 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import React from 'react';
-import { WindowMetadata, NPZData } from '@/types';
+import { WindowMetadata, NPZData, AlignmentMethod } from '@/types';
 import { loadNPZData, loadMetadata, computeTraceStats, alignTraces } from '@/lib/npz-loader';
 import ScatterPlot from '@/components/ScatterPlot';
 import TracePlot from '@/components/TracePlot';
 import LabelFilter from '@/components/LabelFilter';
 
-// List of available dataset folders (update as needed)
-const DATASET_FOLDERS = [
+// Fallback list of dataset folders; replaced by API response if available
+const FALLBACK_DATASET_FOLDERS = [
   { label: 'v2025_07_24f', folder: '/v2025_07_24f/', csv: '/v2025_07_24f/metadata.parquet' },
-  // Add more folders as needed
 ];
 
 function HomeContent() {
@@ -31,9 +30,30 @@ function HomeContent() {
   const [alignedTraceData, setAlignedTraceData] = useState<{ alignedTraces: number[][], peakPositions: number[], mean: number[], std: number[] }>({ alignedTraces: [], peakPositions: [], mean: [], std: [] });
   const [plotType1, setPlotType1] = useState<'mean' | 'aligned' | 'individual'>('mean');
   const [plotType2, setPlotType2] = useState<'mean' | 'aligned' | 'individual'>('individual');
+  const [alignmentMethod, setAlignmentMethod] = useState<AlignmentMethod>('neg-peak');
   const [datasetIdx, setDatasetIdx] = useState(0);
+  const [datasets, setDatasets] = useState(FALLBACK_DATASET_FOLDERS);
 
   console.log('[Neuro-Explorer] Component render - datasetIdx:', datasetIdx, 'isLoading:', isLoading);
+
+  // Fetch dataset list from API on mount
+  useEffect(() => {
+    async function fetchDatasets() {
+      try {
+        const res = await fetch('/api/datasets', { cache: 'no-store' });
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json.datasets) && json.datasets.length > 0) {
+            setDatasets(json.datasets);
+            setDatasetIdx(0);
+          }
+        }
+      } catch (e) {
+        console.warn('[Neuro-Explorer] Using fallback datasets');
+      }
+    }
+    fetchDatasets();
+  }, []);
 
   // Load data when dataset changes
   useEffect(() => {
@@ -45,7 +65,7 @@ function HomeContent() {
         setSelectedIds([]);
         setSelectedLabels([]);
 
-        const { folder, csv } = DATASET_FOLDERS[datasetIdx];
+        const { folder, csv } = datasets[datasetIdx] || datasets[0];
         console.log('[Neuro-Explorer] About to fetch manifest:', `${folder}manifest.json`);
         // Load metadata
         const metadata = await loadMetadata(csv);
@@ -67,7 +87,7 @@ function HomeContent() {
       }
     }
     loadData();
-  }, [datasetIdx]);
+  }, [datasetIdx, datasets]);
 
   // Test useEffect to see if useEffect works at all
   useEffect(() => {
@@ -88,13 +108,13 @@ function HomeContent() {
       setTraceStats(stats);
       
       // Also compute aligned traces
-      const alignedData = alignTraces(npzData.traces, selectedIds, windowIds);
+      const alignedData = alignTraces(npzData.traces, selectedIds, windowIds, alignmentMethod);
       setAlignedTraceData(alignedData);
     } else {
       setTraceStats({ mean: [], std: [] });
       setAlignedTraceData({ alignedTraces: [], peakPositions: [], mean: [], std: [] });
     }
-  }, [selectedIds, npzData, metadata]);
+  }, [selectedIds, npzData, metadata, alignmentMethod]);
 
   console.log('[Neuro-Explorer] About to return JSX - isLoading:', isLoading, 'error:', error);
 
@@ -115,7 +135,7 @@ function HomeContent() {
               value={datasetIdx}
               onChange={e => setDatasetIdx(Number(e.target.value))}
             >
-              {DATASET_FOLDERS.map((ds, idx) => (
+              {datasets.map((ds, idx) => (
                 <option value={idx} key={ds.label}>{ds.label}</option>
               ))}
             </select>
@@ -164,6 +184,25 @@ function HomeContent() {
               />
             </div>
 
+            {/* Trace controls */}
+            <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+              <div className="flex flex-wrap items-center gap-6">
+                <div>
+                  <label className="text-sm text-gray-300 mr-2">Alignment:</label>
+                  <select
+                    className="bg-gray-700 text-white border border-gray-600 rounded px-3 py-1 text-sm"
+                    value={alignmentMethod}
+                    onChange={(e) => setAlignmentMethod(e.target.value as AlignmentMethod)}
+                  >
+                    <option value="none">None</option>
+                    <option value="neg-peak">Negative peak</option>
+                    <option value="pos-peak">Positive peak</option>
+                    <option value="xcorr">Cross-correlation</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             {/* Trace Plot 1 */}
             <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
               <div className="flex items-center justify-between mb-4">
@@ -189,8 +228,16 @@ function HomeContent() {
                     Selected {selectedIds.length} windows
                   </p>
                   <TracePlot
-                    mean={plotType1 === 'mean' ? traceStats.mean : alignedTraceData.mean}
-                    std={plotType1 === 'mean' ? traceStats.std : alignedTraceData.std}
+                    mean={
+                      plotType1 === 'mean'
+                        ? (alignmentMethod === 'none' ? traceStats.mean : alignedTraceData.mean)
+                        : alignedTraceData.mean
+                    }
+                    std={
+                      plotType1 === 'mean'
+                        ? (alignmentMethod === 'none' ? traceStats.std : alignedTraceData.std)
+                        : alignedTraceData.std
+                    }
                     title={
                       plotType1 === 'mean' ? `Mean ± Std (${selectedIds.length} windows)` :
                       plotType1 === 'aligned' ? `Aligned Traces (${selectedIds.length} windows)` :
@@ -234,8 +281,16 @@ function HomeContent() {
                     Selected {selectedIds.length} windows
                   </p>
                   <TracePlot
-                    mean={plotType2 === 'mean' ? traceStats.mean : (plotType2 === 'individual' ? [] : alignedTraceData.mean)}
-                    std={plotType2 === 'mean' ? traceStats.std : (plotType2 === 'individual' ? [] : alignedTraceData.std)}
+                    mean={
+                      plotType2 === 'mean'
+                        ? (alignmentMethod === 'none' ? traceStats.mean : alignedTraceData.mean)
+                        : (plotType2 === 'individual' ? [] : alignedTraceData.mean)
+                    }
+                    std={
+                      plotType2 === 'mean'
+                        ? (alignmentMethod === 'none' ? traceStats.std : alignedTraceData.std)
+                        : (plotType2 === 'individual' ? [] : alignedTraceData.std)
+                    }
                     title={
                       plotType2 === 'mean' ? `Mean ± Std (${selectedIds.length} windows)` :
                       plotType2 === 'aligned' ? `Aligned Traces (${selectedIds.length} windows)` :
