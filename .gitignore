@@ -6,7 +6,7 @@ apps/nextjs-ui/public/*
 # Ignore other large or generated files as needed
 
 # Ignore data and versioned artifacts
-v*/
+/v*/
 data/
 export_code.py
 
