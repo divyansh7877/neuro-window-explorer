@@ -1,0 +1,9 @@
+{
+  "datasets": [
+    { "label": "v2025_07_24f", "folder": "/v2025_07_24f/", "csv": "/v2025_07_24f/metadata.parquet" },
+    { "label": "v2025_08_07ft", "folder": "/v2025_08_07ft/", "csv": "/v2025_08_07ft/metadata.parquet" },
+    { "label": "v2025_08_07s", "folder": "/v2025_08_07s/", "csv": "/v2025_08_07s/metadata.parquet" }
+  ]
+}
+
+
