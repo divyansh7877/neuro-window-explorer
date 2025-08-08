@@ -7,10 +7,11 @@ interface ScatterPlotProps {
   data: WindowMetadata[];
   onSelectionChange: (selectedIds: number[]) => void;
   selectedIds: number[];
-  pca_xy?: Float32Array;
+  coords?: Float32Array; // interleaved (N,2)
+  title?: string;
 }
 
-export default function ScatterPlot({ data, onSelectionChange, selectedIds, pca_xy }: ScatterPlotProps) {
+export default function ScatterPlot({ data, onSelectionChange, selectedIds, coords, title = 'Embedding' }: ScatterPlotProps) {
   const plotRef = useRef<HTMLDivElement>(null);
   const [plotlyLoaded, setPlotlyLoaded] = useState(false);
 
@@ -25,9 +26,18 @@ export default function ScatterPlot({ data, onSelectionChange, selectedIds, pca_
 
     import('plotly.js-dist').then((PlotlyModule) => {
       const Plotly = PlotlyModule.default;
-      // Use metadata PCA coordinates directly for filtered data
-      const x = data.map(d => d.pca_x);
-      const y = data.map(d => d.pca_y);
+      // Choose coordinates: either provided coords or metadata PCA
+      let x: number[] = [];
+      let y: number[] = [];
+      if (coords && coords.length >= data.length * 2) {
+        for (let i = 0; i < data.length; i++) {
+          x.push(coords[i * 2]);
+          y.push(coords[i * 2 + 1]);
+        }
+      } else {
+        x = data.map(d => d.pca_x);
+        y = data.map(d => d.pca_y);
+      }
       
       const colors = data.map(d => d.label_code);
       const ids = data.map(d => d.window_id);
@@ -51,7 +61,7 @@ export default function ScatterPlot({ data, onSelectionChange, selectedIds, pca_
       }];
 
       const layout = {
-        title: 'PCA-XY Embedding',
+        title,
         xaxis: { title: 'PCA X' },
         yaxis: { title: 'PCA Y' },
         width: 900,
@@ -97,7 +107,7 @@ export default function ScatterPlot({ data, onSelectionChange, selectedIds, pca_
         });
       }
     };
-  }, [data, plotlyLoaded, onSelectionChange, pca_xy]);
+  }, [data, plotlyLoaded, onSelectionChange, coords, title]);
 
   useEffect(() => {
     if (!plotlyLoaded || !plotRef.current) return;

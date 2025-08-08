@@ -33,6 +33,7 @@ function HomeContent() {
   const [alignmentMethod, setAlignmentMethod] = useState<AlignmentMethod>('neg-peak');
   const [datasetIdx, setDatasetIdx] = useState(0);
   const [datasets, setDatasets] = useState(FALLBACK_DATASET_FOLDERS);
+  const [embedType, setEmbedType] = useState<'pca' | 'tsne'>('pca');
 
   console.log('[Neuro-Explorer] Component render - datasetIdx:', datasetIdx, 'isLoading:', isLoading);
 
@@ -175,12 +176,26 @@ function HomeContent() {
           <div className="lg:col-span-2 space-y-8">
             {/* Scatter Plot */}
             <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
-              <h2 className="text-2xl font-semibold mb-4 text-white">PCA Embedding</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-semibold text-white">Embedding</h2>
+                <div className="flex items-center space-x-4">
+                  <label className="text-sm text-gray-300">Type:</label>
+                  <select
+                    className="bg-gray-700 text-white border border-gray-600 rounded px-3 py-1 text-sm"
+                    value={embedType}
+                    onChange={(e) => setEmbedType(e.target.value as 'pca' | 'tsne')}
+                  >
+                    <option value="pca">PCA</option>
+                    <option value="tsne">t-SNE</option>
+                  </select>
+                </div>
+              </div>
               <ScatterPlot
                 data={filteredMetadata}
                 selectedIds={selectedIds}
                 onSelectionChange={setSelectedIds}
-                pca_xy={npzData?.pca_xy}
+                coords={embedType === 'pca' ? npzData?.pca_xy : npzData?.tsne_xy}
+                title={embedType === 'pca' ? 'PCA-XY Embedding' : 't-SNE Embedding'}
               />
             </div>
 

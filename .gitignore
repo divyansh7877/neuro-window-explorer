@@ -5,6 +5,9 @@ apps/nextjs-ui/public/*
 
 # Ignore other large or generated files as needed
 
+# Ignore node_modules everywhere
+node_modules/
+
 # Ignore data and versioned artifacts
 /v*/
 data/

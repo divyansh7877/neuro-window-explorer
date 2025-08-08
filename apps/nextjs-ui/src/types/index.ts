@@ -12,6 +12,7 @@ export interface NPZData {
   encoded_labels: Uint8Array; // shape: (N,)
   emb_mean: Float32Array; // shape: (N, 64)
   pca_xy: Float32Array; // shape: (N, 2)
+  tsne_xy?: Float32Array; // optional: shape (N, 2)
   origin_keys: Record<string, unknown>; // shape varies
 }
 

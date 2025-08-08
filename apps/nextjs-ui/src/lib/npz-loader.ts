@@ -36,6 +36,7 @@ export async function loadNPZData(folder: string): Promise<NPZData> {
     encoded_labels: npzData.encoded_labels as Uint8Array,
     emb_mean: npzData.emb_mean as Float32Array,
     pca_xy: npzData.pca_xy as Float32Array,
+    tsne_xy: (npzData.tsne_xy as Float32Array) || undefined,
     origin_keys: {},
   };
 }
