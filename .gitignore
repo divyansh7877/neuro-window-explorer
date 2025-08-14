@@ -13,6 +13,7 @@ node_modules/
 /v*/
 data/
 export_code.py
+archived_datasets/
 
 # Ignore Python cache and virtual environments
 __pycache__/
@@ -30,4 +31,4 @@ venv/
 Thumbs.db
 
 # Ignore Streamlit cache
-.streamlit/ 
+.streamlit/

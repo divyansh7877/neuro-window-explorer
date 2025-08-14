@@ -1,6 +1,6 @@
 // NPY file parser for browser
 
-export function parseNPYFile(arrayBuffer: ArrayBuffer): { array: Float32Array | Uint8Array, shape: number[], dtype: string } {
+export function parseNPYFile(arrayBuffer: ArrayBuffer): { array: Float32Array | Uint8Array | Int16Array, shape: number[], dtype: string } {
   // Log the first 16 bytes for debugging
   const headerBytes = new Uint8Array(arrayBuffer, 0, 16);
   console.log('[NPY] NPY header bytes:', Array.from(headerBytes));
@@ -55,6 +55,8 @@ export function parseNPYFile(arrayBuffer: ArrayBuffer): { array: Float32Array | 
     return { array: new Float32Array(data.buffer, data.byteOffset, data.length / 4), shape, dtype };
   } else if (dtype === 'u1' || dtype === 'uint8' || dtype === '|u1') {
     return { array: new Uint8Array(data), shape, dtype };
+  } else if (dtype === '<i2' || dtype === 'int16') {
+    return { array: new Int16Array(data.buffer, data.byteOffset, data.length / 2), shape, dtype };
   } else {
     throw new Error(`Unsupported dtype: ${dtype}`);
   }

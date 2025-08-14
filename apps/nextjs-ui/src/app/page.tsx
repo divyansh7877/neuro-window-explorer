@@ -2,28 +2,42 @@
 
 import { useState, useEffect } from 'react';
 import React from 'react';
-import { WindowMetadata, NPZData, AlignmentMethod } from '@/types';
-import { loadNPZData, loadMetadata, computeTraceStats, alignTraces } from '@/lib/npz-loader';
+import { WindowMetadata, NPZData, AlignmentMethod, Manifest } from '@/types';
+import { loadDataFromManifest, loadMetadata, computeTraceStats, alignTraces } from '@/lib/npz-loader';
 import ScatterPlot from '@/components/ScatterPlot';
 import TracePlot from '@/components/TracePlot';
 import LabelFilter from '@/components/LabelFilter';
 
+import { ColorMode } from '@/components/LabelFilter';
+
 // Fallback list of dataset folders; replaced by API response if available
 const FALLBACK_DATASET_FOLDERS = [
-  { label: 'v2025_07_24f', folder: '/v2025_07_24f/', csv: '/v2025_07_24f/metadata.parquet' },
+  { label: 'v_chin_embeds', folder: '/v_chin_embeds/' },
 ];
 
 function HomeContent() {
-  console.log('[Neuro-Explorer] Home component mounted');
+  const [manifest, setManifest] = useState<Manifest | null>(null);
   const [metadata, setMetadata] = useState<WindowMetadata[]>([]);
   const [npzData, setNpzData] = useState<NPZData | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [selectedLabels, setSelectedLabels] = useState<number[]>([]);
   
-  // Clear selections when filter changes
+  const [colorMode, setColorMode] = useState<ColorMode>('label');
+  const [selectedLabels, setSelectedLabels] = useState<number[]>([]);
+  const [selectedClusters, setSelectedClusters] = useState<number[]>([]);
+
+  // Reset selections when color mode changes
   useEffect(() => {
     setSelectedIds([]);
-  }, [selectedLabels]);
+    const allCodes = Array.from(new Set(metadata.map(m => colorMode === 'label' ? m.label_code : m.cluster_code)));
+    if (colorMode === 'label') {
+      setSelectedLabels(allCodes as number[]);
+      setSelectedClusters([]);
+    } else {
+      setSelectedClusters(allCodes as number[]);
+      setSelectedLabels([]);
+    }
+  }, [colorMode, metadata]);
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [traceStats, setTraceStats] = useState<{ mean: number[], std: number[] }>({ mean: [], std: [] });
@@ -34,8 +48,6 @@ function HomeContent() {
   const [datasetIdx, setDatasetIdx] = useState(0);
   const [datasets, setDatasets] = useState(FALLBACK_DATASET_FOLDERS);
   const [embedType, setEmbedType] = useState<'pca' | 'tsne'>('pca');
-
-  console.log('[Neuro-Explorer] Component render - datasetIdx:', datasetIdx, 'isLoading:', isLoading);
 
   // Fetch dataset list from API on mount
   useEffect(() => {
@@ -49,8 +61,8 @@ function HomeContent() {
             setDatasetIdx(0);
           }
         }
-      } catch (e) {
-        console.warn('[Neuro-Explorer] Using fallback datasets');
+      } catch (e: unknown) {
+        console.warn('[Neuro-Explorer] Using fallback datasets', e);
       }
     }
     fetchDatasets();
@@ -58,88 +70,85 @@ function HomeContent() {
 
   // Load data when dataset changes
   useEffect(() => {
-    console.log('[Neuro-Explorer] useEffect for data loading triggered');
     async function loadData() {
       try {
         setIsLoading(true);
         setError(null);
         setSelectedIds([]);
-        setSelectedLabels([]);
+        
+        const { folder } = datasets[datasetIdx] || datasets[0];
+        const { manifest, npzData } = await loadDataFromManifest(folder);
+        const metadata = await loadMetadata(`${folder}${manifest.files.metadata}`);
 
-        const { folder, csv } = datasets[datasetIdx] || datasets[0];
-        console.log('[Neuro-Explorer] About to fetch manifest:', `${folder}manifest.json`);
-        // Load metadata
-        const metadata = await loadMetadata(csv);
-        console.log('[Neuro-Explorer] Loaded metadata:', metadata && metadata.length, metadata?.slice?.(0, 5));
+        setManifest(manifest);
         setMetadata(metadata);
-        // Select all labels by default
+        setNpzData(npzData);
+
+        // Default to selecting all labels
+        setColorMode('label');
         const allLabels = Array.from(new Set(metadata.map(m => m.label_code)));
         setSelectedLabels(allLabels);
-        // Load NPY data from folder
-        const npzObj = await loadNPZData(folder);
-        console.log('[Neuro-Explorer] Loaded NPZ data:', npzObj);
-        setNpzData(npzObj);
+        setSelectedClusters([]);
+
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data');
         console.error('[Neuro-Explorer] Error loading data:', err);
       } finally {
         setIsLoading(false);
-        console.log('[Neuro-Explorer] Loading complete. isLoading:', false);
       }
     }
     loadData();
   }, [datasetIdx, datasets]);
 
-  // Test useEffect to see if useEffect works at all
-  useEffect(() => {
-    console.log('[Neuro-Explorer] Test useEffect with no dependencies - component mounted/hydrated');
-  }, []);
-
-  // Filter data based on selected labels
-  const filteredMetadata = selectedLabels.length > 0 
-    ? metadata.filter(item => selectedLabels.includes(item.label_code))
-    : metadata;
+  // Filter data based on selected labels or clusters
+  const filteredMetadata = metadata.filter(item => {
+    if (colorMode === 'label') {
+      return selectedLabels.length > 0 ? selectedLabels.includes(item.label_code) : true;
+    } else {
+      return selectedClusters.length > 0 ? selectedClusters.includes(item.cluster_code!) : true;
+    }
+  });
 
   // Compute trace stats when selection changes
   useEffect(() => {
-    if (selectedIds.length > 0 && npzData) {
-      // Use full metadata for window IDs since traces array corresponds to full dataset
+    if (selectedIds.length > 0 && npzData && manifest) {
       const windowIds = metadata.map(m => m.window_id);
-      const stats = computeTraceStats(npzData.traces, selectedIds, windowIds);
+      const timesteps = manifest.timesteps_per_sample;
+      const stats = computeTraceStats(npzData.traces, selectedIds, windowIds, timesteps);
       setTraceStats(stats);
       
-      // Also compute aligned traces
-      const alignedData = alignTraces(npzData.traces, selectedIds, windowIds, alignmentMethod);
+      const alignedData = alignTraces(npzData.traces, selectedIds, windowIds, timesteps, alignmentMethod);
       setAlignedTraceData(alignedData);
     } else {
       setTraceStats({ mean: [], std: [] });
       setAlignedTraceData({ alignedTraces: [], peakPositions: [], mean: [], std: [] });
     }
-  }, [selectedIds, npzData, metadata, alignmentMethod]);
-
-  console.log('[Neuro-Explorer] About to return JSX - isLoading:', isLoading, 'error:', error);
+  }, [selectedIds, npzData, metadata, alignmentMethod, manifest]);
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-gray-900 text-white">
       <div className="container mx-auto px-4 py-8">
         <header className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            Neuro-Window Explorer
-          </h1>
-          <p className="text-gray-300">
-            Interactive exploration of neural traces and their embeddings
-          </p>
-          <div className="mt-4">
-            <label className="text-gray-400 mr-2 font-medium">Dataset version:</label>
-            <select
-              className="bg-gray-800 text-white border border-gray-700 rounded px-3 py-1"
-              value={datasetIdx}
-              onChange={e => setDatasetIdx(Number(e.target.value))}
-            >
-              {datasets.map((ds, idx) => (
-                <option value={idx} key={ds.label}>{ds.label}</option>
-              ))}
-            </select>
+          <h1 className="text-4xl font-bold mb-2">Neuro-Window Explorer</h1>
+          <div className="mt-4 flex justify-between items-end">
+            <div>
+              <label className="text-gray-400 mr-2 font-medium">Dataset version:</label>
+              <select
+                className="bg-gray-800 border border-gray-700 rounded px-3 py-1"
+                value={datasetIdx}
+                onChange={e => setDatasetIdx(Number(e.target.value))}
+              >
+                {datasets.map((ds, idx) => (
+                  <option value={idx} key={ds.label}>{ds.label}</option>
+                ))}
+              </select>
+            </div>
+            {manifest && (
+              <div className="text-right text-sm text-gray-400">
+                <p>{manifest.version}</p>
+                <p>{manifest.num_samples} samples, {manifest.timesteps_per_sample} timesteps</p>
+              </div>
+            )}
           </div>
         </header>
 
@@ -147,7 +156,7 @@ function HomeContent() {
           <div className="min-h-[40vh] flex items-center justify-center">
             <div className="text-center">
               <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto"></div>
-              <p className="mt-4 text-lg text-gray-100">Loading neuro-explorer data...</p>
+              <p className="mt-4 text-lg">Loading neuro-explorer data...</p>
             </div>
           </div>
         ) : error ? (
@@ -156,32 +165,40 @@ function HomeContent() {
               <div className="text-red-400 text-xl mb-4">⚠️ Error Loading Data</div>
               <p className="text-gray-300">{error}</p>
               <p className="text-sm text-gray-500 mt-2">
-                Make sure the data files are available in the public directory
+                Make sure data files are in the public directory and the server is running.
               </p>
             </div>
           </div>
         ) : (
         <>
+        {manifest?.description && (
+          <div className="mb-8 bg-gray-800 border border-gray-700 rounded-lg p-4">
+            <h2 className="text-xl font-semibold mb-2">Dataset Description</h2>
+            <p className="text-gray-300 text-sm">{manifest.description}</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Label Filter */}
           <div className="lg:col-span-1">
             <LabelFilter
               data={metadata}
-              selectedLabels={selectedLabels}
-              onFilterChange={setSelectedLabels}
+              selected={colorMode === 'label' ? selectedLabels : selectedClusters}
+              onFilterChange={colorMode === 'label' ? setSelectedLabels : setSelectedClusters}
+              colorMode={colorMode}
+              onColorModeChange={setColorMode}
+              labelMap={manifest?.label_map}
+              clusterMap={manifest?.cluster_map}
             />
           </div>
 
-          {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Scatter Plot */}
             <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-semibold text-white">Embedding</h2>
+                <h2 className="text-2xl font-semibold">Embedding</h2>
                 <div className="flex items-center space-x-4">
                   <label className="text-sm text-gray-300">Type:</label>
                   <select
-                    className="bg-gray-700 text-white border border-gray-600 rounded px-3 py-1 text-sm"
+                    className="bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm"
                     value={embedType}
                     onChange={(e) => setEmbedType(e.target.value as 'pca' | 'tsne')}
                   >
@@ -194,8 +211,10 @@ function HomeContent() {
                 data={filteredMetadata}
                 selectedIds={selectedIds}
                 onSelectionChange={setSelectedIds}
-                coords={embedType === 'pca' ? npzData?.pca_xy : npzData?.tsne_xy}
-                title={embedType === 'pca' ? 'PCA-XY Embedding' : 't-SNE Embedding'}
+                embedType={embedType}
+                colorMode={colorMode}
+                labelMap={manifest?.label_map}
+                clusterMap={manifest?.cluster_map}
               />
             </div>
 
@@ -243,21 +262,9 @@ function HomeContent() {
                     Selected {selectedIds.length} windows
                   </p>
                   <TracePlot
-                    mean={
-                      plotType1 === 'mean'
-                        ? (alignmentMethod === 'none' ? traceStats.mean : alignedTraceData.mean)
-                        : alignedTraceData.mean
-                    }
-                    std={
-                      plotType1 === 'mean'
-                        ? (alignmentMethod === 'none' ? traceStats.std : alignedTraceData.std)
-                        : alignedTraceData.std
-                    }
-                    title={
-                      plotType1 === 'mean' ? `Mean ± Std (${selectedIds.length} windows)` :
-                      plotType1 === 'aligned' ? `Aligned Traces (${selectedIds.length} windows)` :
-                      `Individual Traces (${selectedIds.length} windows)`
-                    }
+                    mean={plotType1 === 'mean' ? (alignmentMethod === 'none' ? traceStats.mean : alignedTraceData.mean) : alignedTraceData.mean}
+                    std={plotType1 === 'mean' ? (alignmentMethod === 'none' ? traceStats.std : alignedTraceData.std) : alignedTraceData.std}
+                    title={`Plot 1: ${plotType1}`}
                     alignedTraces={alignedTraceData.alignedTraces}
                     showIndividualTraces={plotType1 !== 'mean'}
                   />
@@ -296,21 +303,9 @@ function HomeContent() {
                     Selected {selectedIds.length} windows
                   </p>
                   <TracePlot
-                    mean={
-                      plotType2 === 'mean'
-                        ? (alignmentMethod === 'none' ? traceStats.mean : alignedTraceData.mean)
-                        : (plotType2 === 'individual' ? [] : alignedTraceData.mean)
-                    }
-                    std={
-                      plotType2 === 'mean'
-                        ? (alignmentMethod === 'none' ? traceStats.std : alignedTraceData.std)
-                        : (plotType2 === 'individual' ? [] : alignedTraceData.std)
-                    }
-                    title={
-                      plotType2 === 'mean' ? `Mean ± Std (${selectedIds.length} windows)` :
-                      plotType2 === 'aligned' ? `Aligned Traces (${selectedIds.length} windows)` :
-                      `Individual Traces (${selectedIds.length} windows)`
-                    }
+                    mean={plotType2 === 'mean' ? (alignmentMethod === 'none' ? traceStats.mean : alignedTraceData.mean) : (plotType2 === 'individual' ? [] : alignedTraceData.mean)}
+                    std={plotType2 === 'mean' ? (alignmentMethod === 'none' ? traceStats.std : alignedTraceData.std) : (plotType2 === 'individual' ? [] : alignedTraceData.std)}
+                    title={`Plot 2: ${plotType2}`}
                     alignedTraces={alignedTraceData.alignedTraces}
                     showIndividualTraces={plotType2 !== 'mean'}
                   />
@@ -325,31 +320,6 @@ function HomeContent() {
             </div>
           </div>
         </div>
-
-        {/* Data Info */}
-        <div className="mt-8 bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
-          <h3 className="text-xl font-semibold mb-4 text-white">Data Information</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <span className="font-medium text-gray-300">Total Windows:</span>
-              <span className="ml-2 text-white">{metadata.length}</span>
-            </div>
-            <div>
-              <span className="font-medium text-gray-300">Filtered:</span>
-              <span className="ml-2 text-white">{filteredMetadata.length}</span>
-            </div>
-            <div>
-              <span className="font-medium text-gray-300">Selected:</span>
-              <span className="ml-2 text-white">{selectedIds.length}</span>
-            </div>
-            <div>
-              <span className="font-medium text-gray-300">Labels:</span>
-              <span className="ml-2 text-white">
-                {new Set(metadata.map(m => m.label_code)).size}
-              </span>
-            </div>
-          </div>
-        </div>
         </>
         )}
       </div>
@@ -359,25 +329,9 @@ function HomeContent() {
 
 export default function Home() {
   const [isClient, setIsClient] = useState(false);
-  const [testCounter, setTestCounter] = useState(0);
-
-  // Test basic JavaScript execution
-  console.log('[Neuro-Explorer] About to set timeout');
-  setTimeout(() => {
-    console.log('[Neuro-Explorer] setTimeout executed - basic JS works');
-    console.log('[Neuro-Explorer] React available?', typeof React !== 'undefined');
-    console.log('[Neuro-Explorer] useState available?', typeof useState === 'function');
-    console.log('[Neuro-Explorer] useEffect available?', typeof useEffect === 'function');
-  }, 1000);
-
-  console.log('[Neuro-Explorer] testCounter:', testCounter);
-
   useEffect(() => {
-    console.log('[Neuro-Explorer] Setting isClient to true');
     setIsClient(true);
   }, []);
-
-  console.log('[Neuro-Explorer] Home wrapper - isClient:', isClient);
 
   if (!isClient) {
     return (
@@ -385,30 +339,10 @@ export default function Home() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto"></div>
           <p className="mt-4 text-lg text-gray-100">Initializing client...</p>
-          <button 
-            onClick={() => {
-              console.log('[Neuro-Explorer] Button clicked - testing useState');
-              setTestCounter(c => c + 1);
-            }}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Test useState (Count: {testCounter})
-          </button>
-          <button 
-            onClick={() => {
-              console.log('[Neuro-Explorer] Manually setting isClient to true');
-              setIsClient(true);
-            }}
-            className="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            Bypass useEffect - Start App
-          </button>
         </div>
       </div>
     );
   }
 
-  return (
-    <HomeContent />
-  );
+  return <HomeContent />;
 }

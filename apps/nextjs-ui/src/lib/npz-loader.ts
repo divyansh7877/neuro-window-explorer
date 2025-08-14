@@ -1,9 +1,9 @@
 import { tableFromIPC } from 'apache-arrow';
 import { parseNPYFile } from './npz-parser';
-import type { NPZData, WindowMetadata, AlignmentMethod } from '../types';
+import type { NPZData, WindowMetadata, AlignmentMethod, Manifest, OldManifest } from '../types';
 
 // Helper to load and parse a .npy file
-async function loadNPY(url: string): Promise<Float32Array | Uint8Array> {
+async function loadNPY(url: string): Promise<Float32Array | Uint8Array | Int16Array> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Failed to fetch NPY: ${url}`);
   const arrayBuffer = await response.arrayBuffer();
@@ -12,13 +12,30 @@ async function loadNPY(url: string): Promise<Float32Array | Uint8Array> {
 }
 
 // Loader for data based on manifest.json
-export async function loadNPZData(folder: string): Promise<NPZData> {
+export async function loadDataFromManifest(folder: string): Promise<{ manifest: Manifest, npzData: NPZData }> {
   const manifestUrl = `${folder}manifest.json`;
   const manifestResponse = await fetch(manifestUrl);
   if (!manifestResponse.ok) throw new Error(`Failed to fetch manifest: ${manifestUrl}`);
-  const manifest = await manifestResponse.json();
+  const manifest = await manifestResponse.json() as Manifest | OldManifest;
+  let manifestObject: Manifest;
 
-  const dataPromises = Object.entries(manifest).map(async ([key, filename]) => {
+  // For backward compatibility with old manifests
+  if (!('files' in manifest)) {
+    const oldManifest = manifest as OldManifest;
+    const files: Record<string, string> = {};
+    if (oldManifest.traces) files.traces = oldManifest.traces;
+    if (oldManifest.encoded_labels) files.encoded_labels = oldManifest.encoded_labels;
+    if (oldManifest.cluster_labels) files.cluster_labels = oldManifest.cluster_labels;
+    if (oldManifest.emb_mean) files.emb_mean = oldManifest.emb_mean;
+    if (oldManifest.metadata) files.metadata = oldManifest.metadata;
+    
+    // Create a new, valid Manifest object
+    manifestObject = { ...oldManifest, files };
+  } else {
+    manifestObject = manifest as Manifest;
+  }
+
+  const dataPromises = Object.entries(manifestObject.files).map(async ([key, filename]) => {
     if (typeof filename === 'string' && filename.endsWith('.npy')) {
       const url = `${folder}${filename}`;
       const array = await loadNPY(url);
@@ -28,17 +45,17 @@ export async function loadNPZData(folder: string): Promise<NPZData> {
   });
 
   const dataEntries = await Promise.all(dataPromises);
-  const npzData: Record<string, Float32Array | Uint8Array> = Object.fromEntries(dataEntries.filter(([, val]) => val !== null));
+  const npzDataArrays: Record<string, Float32Array | Uint8Array | Int16Array> = Object.fromEntries(dataEntries.filter(([, val]) => val !== null));
 
-  return {
-    traces: npzData.traces as Float32Array,
-    label_seq: npzData.label_seq as Uint8Array,
-    encoded_labels: npzData.encoded_labels as Uint8Array,
-    emb_mean: npzData.emb_mean as Float32Array,
-    pca_xy: npzData.pca_xy as Float32Array,
-    tsne_xy: (npzData.tsne_xy as Float32Array) || undefined,
+  const npzData: NPZData = {
+    traces: npzDataArrays.traces as Float32Array,
+    encoded_labels: npzDataArrays.encoded_labels as Uint8Array,
+    cluster_labels: (npzDataArrays.cluster_labels as Int16Array) || undefined,
+    emb_mean: npzDataArrays.emb_mean as Float32Array,
     origin_keys: {},
   };
+
+  return { manifest: manifestObject, npzData };
 }
 
 // Load metadata from Parquet file
@@ -49,13 +66,11 @@ export async function loadMetadata(url: string): Promise<WindowMetadata[]> {
       throw new Error(`Failed to fetch metadata: ${response.statusText}`);
     }
     
-    // Dynamic import to avoid Node.js bundle issues
     const { readParquet } = await import('parquet-wasm/bundler');
     
     const arrayBuffer = await response.arrayBuffer();
     const parquetUint8Array = new Uint8Array(arrayBuffer);
     
-    // Read Parquet file using parquet-wasm
     const wasmTable = readParquet(parquetUint8Array);
     const table = tableFromIPC(wasmTable.intoIPCStream());
     
@@ -65,8 +80,11 @@ export async function loadMetadata(url: string): Promise<WindowMetadata[]> {
         metadata.push({
             window_id: row.window_id,
             label_code: row.label_code,
+            cluster_code: row.cluster_code,
             pca_x: row.pca_x,
             pca_y: row.pca_y,
+            tsne_x: row.tsne_x,
+            tsne_y: row.tsne_y,
         });
     }
 
@@ -81,13 +99,14 @@ export async function loadMetadata(url: string): Promise<WindowMetadata[]> {
 export function computeTraceStats(
   traces: Float32Array, 
   selectedIds: number[], 
-  windowIds: number[]
+  windowIds: number[],
+  timesteps: number
 ): { mean: number[], std: number[] } {
   if (selectedIds.length === 0) {
     return { mean: [], std: [] };
   }
   
-  const numSamples = 500; // Fixed window size
+  const numSamples = timesteps; // Use dynamic window size
   const selectedIndices = selectedIds.map(id => windowIds.indexOf(id)).filter(i => i !== -1);
   
   if (selectedIndices.length === 0) {
@@ -155,13 +174,14 @@ export function alignTraces(
   traces: Float32Array,
   selectedIds: number[],
   windowIds: number[],
+  timesteps: number,
   method: AlignmentMethod = 'neg-peak'
 ): { alignedTraces: number[][], peakPositions: number[], mean: number[], std: number[] } {
   if (selectedIds.length === 0) {
     return { alignedTraces: [], peakPositions: [], mean: [], std: [] };
   }
   
-  const numSamples = 500;
+  const numSamples = timesteps;
   const selectedIndices = selectedIds.map(id => windowIds.indexOf(id)).filter(i => i !== -1);
   
   if (selectedIndices.length === 0) {

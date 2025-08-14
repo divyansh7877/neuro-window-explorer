@@ -3,15 +3,29 @@
 import { useEffect, useRef, useState } from 'react';
 import { WindowMetadata } from '@/types';
 
+import { ColorMode } from './LabelFilter';
+
 interface ScatterPlotProps {
   data: WindowMetadata[];
   onSelectionChange: (selectedIds: number[]) => void;
   selectedIds: number[];
-  coords?: Float32Array; // interleaved (N,2)
+  embedType: 'pca' | 'tsne';
+  colorMode: ColorMode;
+  labelMap?: Record<string, string>;
+  clusterMap?: Record<string, string>;
   title?: string;
 }
 
-export default function ScatterPlot({ data, onSelectionChange, selectedIds, coords, title = 'Embedding' }: ScatterPlotProps) {
+export default function ScatterPlot({ 
+  data, 
+  onSelectionChange, 
+  selectedIds, 
+  embedType, 
+  colorMode, 
+  labelMap, 
+  clusterMap, 
+  title = 'Embedding' 
+}: ScatterPlotProps) {
   const plotRef = useRef<HTMLDivElement>(null);
   const [plotlyLoaded, setPlotlyLoaded] = useState(false);
 
@@ -26,20 +40,13 @@ export default function ScatterPlot({ data, onSelectionChange, selectedIds, coor
 
     import('plotly.js-dist').then((PlotlyModule) => {
       const Plotly = PlotlyModule.default;
-      // Choose coordinates: either provided coords or metadata PCA
-      let x: number[] = [];
-      let y: number[] = [];
-      if (coords && coords.length >= data.length * 2) {
-        for (let i = 0; i < data.length; i++) {
-          x.push(coords[i * 2]);
-          y.push(coords[i * 2 + 1]);
-        }
-      } else {
-        x = data.map(d => d.pca_x);
-        y = data.map(d => d.pca_y);
-      }
+
+      const x = data.map(d => embedType === 'pca' ? d.pca_x : d.tsne_x);
+      const y = data.map(d => embedType === 'pca' ? d.pca_y : d.tsne_y);
       
-      const colors = data.map(d => d.label_code);
+      const colorData = data.map(d => colorMode === 'label' ? d.label_code : d.cluster_code);
+      const colorBarTitle = colorMode === 'label' ? 'Label' : 'Cluster';
+      const activeMap = colorMode === 'label' ? labelMap : clusterMap;
       const ids = data.map(d => d.window_id);
 
       const plotData = [{
@@ -47,13 +54,16 @@ export default function ScatterPlot({ data, onSelectionChange, selectedIds, coor
         y,
         mode: 'markers' as const,
         type: 'scattergl' as const,
+        selectedpoints: selectedIds.map(id => data.findIndex(d => d.window_id === id)).filter(i => i !== -1),
         marker: {
           size: 6,
-          color: colors,
+          color: colorData,
           colorscale: 'Viridis' as const,
           showscale: true,
           colorbar: {
-            title: 'Label Code'
+            title: colorBarTitle,
+            tickvals: activeMap ? Object.keys(activeMap).map(Number) : undefined,
+            ticktext: activeMap ? Object.values(activeMap) : undefined,
           }
         },
         text: ids.map(id => `Window ID: ${id}`),
@@ -62,8 +72,8 @@ export default function ScatterPlot({ data, onSelectionChange, selectedIds, coor
 
       const layout = {
         title,
-        xaxis: { title: 'PCA X' },
-        yaxis: { title: 'PCA Y' },
+        xaxis: { title: embedType === 'pca' ? 'PCA X' : 't-SNE X' },
+        yaxis: { title: embedType === 'pca' ? 'PCA Y' : 't-SNE Y' },
         width: 900,
         height: 600,
         dragmode: 'lasso' as const,
@@ -79,7 +89,6 @@ export default function ScatterPlot({ data, onSelectionChange, selectedIds, coor
       if (plotRef.current) {
         Plotly.newPlot(plotRef.current, plotData, layout, config);
 
-        // Attach event listeners to the Plotly graph div
         const plotDiv = plotRef.current as unknown as HTMLElement & { on: (event: string, callback: (eventData: unknown) => void) => void };
         plotDiv.on('plotly_selected', (eventData: unknown) => {
           const event = eventData as { points?: Array<{ pointIndex: number }> };
@@ -107,19 +116,7 @@ export default function ScatterPlot({ data, onSelectionChange, selectedIds, coor
         });
       }
     };
-  }, [data, plotlyLoaded, onSelectionChange, coords, title]);
-
-  useEffect(() => {
-    if (!plotlyLoaded || !plotRef.current) return;
-
-    import('plotly.js-dist').then((PlotlyModule) => {
-      const Plotly = PlotlyModule.default;
-      const selectedIndices = selectedIds.map(id => data.findIndex(d => d.window_id === id)).filter(i => i !== -1);
-      if (plotRef.current) {
-        Plotly.restyle(plotRef.current, { selectedpoints: [selectedIndices] });
-      }
-    });
-  }, [selectedIds, data, plotlyLoaded]);
+  }, [data, plotlyLoaded, onSelectionChange, embedType, title, selectedIds, clusterMap, colorMode, labelMap]);
 
   if (!plotlyLoaded) {
     return (
