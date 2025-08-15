@@ -1,7 +1,7 @@
 {
   "framework": "nextjs",
   "buildCommand": "npm run build",
-  "installCommand": "npm install",
+  "installCommand": "git lfs install && git lfs fetch --all && git lfs checkout && (npm ci || npm install)",
   "functions": {
     "app/page.tsx": {
       "maxDuration": 30
