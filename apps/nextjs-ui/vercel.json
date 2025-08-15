@@ -1,9 +1,11 @@
 {
-  "framework": "nextjs",
   "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
   "installCommand": "npm install",
+  "devCommand": "npm run dev",
   "functions": {
-    "app/page.tsx": {
+    "apps/nextjs-ui/src/app/api/**/*.ts": {
       "maxDuration": 30
     }
   }
