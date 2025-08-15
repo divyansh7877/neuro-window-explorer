@@ -1,0 +1,46 @@
+{
+  "version": "v2025-08-13-hdbscan",
+  "description": "Penultimate embeddings from fine-tuned seg_net; PCA/t-SNE + HDBSCAN. Labels are 4-bit combos.",
+  "num_samples": 3668,
+  "timesteps_per_sample": 2000,
+  "embedding_dim": 16,
+  "k_bins": 10,
+  "num_base_labels": 4,
+  "base_labels": [
+    "L0",
+    "L1",
+    "L2",
+    "L3"
+  ],
+  "combinations_total": 16,
+  "combinations_present": 14,
+  "label_map": {
+    "0": "none",
+    "1": "L0",
+    "2": "L1",
+    "3": "L0+L1",
+    "4": "L2",
+    "5": "L0+L2",
+    "6": "L1+L2",
+    "7": "L0+L1+L2",
+    "8": "L3",
+    "9": "L0+L3",
+    "10": "L1+L3",
+    "11": "L0+L1+L3",
+    "12": "L2+L3",
+    "13": "L0+L2+L3",
+    "14": "L1+L2+L3",
+    "15": "L0+L1+L2+L3"
+  },
+  "files": {
+    "traces": "traces.npy",
+    "encoded_labels": "encoded_labels.npy",
+    "label_multi": "label_multi.npy",
+    "cluster_labels": "cluster_labels.npy",
+    "emb_mean": "emb_mean.npy",
+    "pca_xy": "pca_xy.npy",
+    "tsne_xy": "tsne_xy.npy",
+    "emb_seq": "emb_seq.npy",
+    "metadata": "metadata.parquet"
+  }
+}
