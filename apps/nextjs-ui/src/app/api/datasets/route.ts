@@ -15,7 +15,7 @@ export async function GET() {
       .filter(entry => entry.isDirectory())
       .map(entry => entry.name);
 
-    const datasets = [];
+    const datasets = [] as { label: string; folder: string }[];
     for (const folderName of datasetFolders) {
       const manifestPath = path.join(publicDir, folderName, 'manifest.json');
       try {
@@ -30,6 +30,9 @@ export async function GET() {
       }
     }
 
+    // Optionally prepend external base URL when provided via env. The
+    // frontend will prepend NEXT_PUBLIC_DATA_BASE_URL as well, so we keep
+    // folder paths relative here to avoid double-prepending.
     return NextResponse.json({ datasets });
 
   } catch (error) {
