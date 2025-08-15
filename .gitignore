@@ -1,12 +1,8 @@
-# Ignore everything in public except approved dataset folders/files
+# Ignore everything in public except versioned dataset folders
 apps/nextjs-ui/public/*
 !apps/nextjs-ui/public/v*/
 !apps/nextjs-ui/public/v*/*
 !apps/nextjs-ui/public/datasets.json
-
-# Also include the embeds_chin_2 dataset folder
-!apps/nextjs-ui/public/embeds_chin_2/
-!apps/nextjs-ui/public/embeds_chin_2/**
 
 # Ignore other large or generated files as needed
 
