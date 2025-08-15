@@ -49,8 +49,6 @@ function HomeContent() {
   const [datasets, setDatasets] = useState(FALLBACK_DATASET_FOLDERS);
   const [embedType, setEmbedType] = useState<'pca' | 'tsne'>('pca');
 
-  const BASE_URL = process.env.NEXT_PUBLIC_DATA_BASE_URL || '';
-
   // Fetch dataset list from API on mount
   useEffect(() => {
     async function fetchDatasets() {
@@ -79,9 +77,8 @@ function HomeContent() {
         setSelectedIds([]);
         
         const { folder } = datasets[datasetIdx] || datasets[0];
-        const effectiveFolder = `${BASE_URL}${folder}`;
-        const { manifest, npzData } = await loadDataFromManifest(effectiveFolder);
-        const metadata = await loadMetadata(`${effectiveFolder}${manifest.files.metadata}`);
+        const { manifest, npzData } = await loadDataFromManifest(folder);
+        const metadata = await loadMetadata(`${folder}${manifest.files.metadata}`);
 
         setManifest(manifest);
         setMetadata(metadata);
