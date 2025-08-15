@@ -9,6 +9,16 @@ export async function GET() {
   try {
     // Get the full path to the public directory, assuming CWD is the project root
     const publicDir = path.join(process.cwd(), 'public');
+    // Prefer an explicit datasets.json if present (allows remote hosting)
+    try {
+      const jsonPath = path.join(publicDir, 'datasets.json');
+      const jsonContent = await fs.readFile(jsonPath, 'utf8');
+      const parsed = JSON.parse(jsonContent) as { datasets?: { label: string; folder: string }[] };
+      if (parsed && Array.isArray(parsed.datasets)) {
+        return NextResponse.json({ datasets: parsed.datasets });
+      }
+    } catch { /* fall back to scanning */ }
+
     const allEntries = await fs.readdir(publicDir, { withFileTypes: true });
 
     const datasetFolders = allEntries
