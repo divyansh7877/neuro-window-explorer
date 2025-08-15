@@ -2,6 +2,8 @@
 apps/nextjs-ui/public/*
 !apps/nextjs-ui/public/v*/
 !apps/nextjs-ui/public/v*/*
+!apps/nextjs-ui/public/embeds_chin/
+!apps/nextjs-ui/public/embeds_chin/*
 !apps/nextjs-ui/public/datasets.json
 
 # Ignore other large or generated files as needed
