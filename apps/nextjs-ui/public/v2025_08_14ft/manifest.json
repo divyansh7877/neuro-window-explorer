@@ -7,10 +7,10 @@
   "num_labels": 4,
   "num_clusters": 20,
   "label_map": {
-    "0": "Wake",
-    "1": "N1",
-    "2": "N2",
-    "3": "REM"
+    "0": "No Event",
+    "1": "Fast Event",
+    "2": "Slow Event",
+    "3": "Slow and Fast Event"
   },
   "cluster_map": {
     "0": "Cluster 0",
