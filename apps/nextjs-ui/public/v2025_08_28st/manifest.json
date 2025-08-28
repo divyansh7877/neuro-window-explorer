@@ -1,0 +1,43 @@
+{
+  "version": "v2025-08-14-tes",
+  "description": "This is the two labelled dataset embedding's as seen by the LSTM model trained on the slow events labels.",
+  "num_samples": 32754,
+  "timesteps_per_sample": 500,
+  "embedding_dim": 64,
+  "num_labels": 4,
+  "num_clusters": 18,
+  "label_map": {
+    "0": "No",
+    "1": "Fast",
+    "2": "Slow",
+    "3": "Slow + Fast"
+  },
+  "cluster_map": {
+    "0": "Cluster 0",
+    "1": "Cluster 1",
+    "2": "Cluster 2",
+    "3": "Cluster 3",
+    "4": "Cluster 4",
+    "5": "Cluster 5",
+    "6": "Cluster 6",
+    "7": "Cluster 7",
+    "8": "Cluster 8",
+    "9": "Cluster 9",
+    "10": "Cluster 10",
+    "11": "Cluster 11",
+    "12": "Cluster 12",
+    "13": "Cluster 13",
+    "14": "Cluster 14",
+    "15": "Cluster 15",
+    "16": "Cluster 16",
+    "17": "Cluster 17",
+    "-1": "Noise"
+  },
+  "files": {
+    "traces": "traces.npy",
+    "encoded_labels": "encoded_labels.npy",
+    "cluster_labels": "cluster_labels.npy",
+    "emb_mean": "emb_mean.npy",
+    "metadata": "metadata.parquet"
+  }
+}
