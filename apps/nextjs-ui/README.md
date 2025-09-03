@@ -109,7 +109,7 @@ git add path/to/your/files/*.npz
 git commit -m "Track .npy and .npz files with Git LFS"
 git push
 ```
-- Anyone cloning your repo will need [Git LFS](https://git-lfs.github.com/) installed.
+- Cloning the repo will need [Git LFS](https://git-lfs.github.com/) installed.
 - For datasets >100MB, consider external storage (S3, GCS, etc.)
 
 ---
