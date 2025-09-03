@@ -1,0 +1,63 @@
+{
+  "version": "v2025-08-13-hdbscan",
+  "description": "Penultimate embeddings from fine-tuned seg_net; PCA/t-SNE + HDBSCAN. Labels are 4-bit combos.",
+  "num_samples": 3668,
+  "timesteps_per_sample": 2000,
+  "embedding_dim": 16,
+  "k_bins": 10,
+  "num_base_labels": 4,
+  "base_labels": [
+    "vSlow",
+    "Slow",
+    "Mid",
+    "Fast"
+  ],
+  "combinations_total": 16,
+  "combinations_present": 15,
+  "label_map_present": {
+    "0": "none",
+    "1": "vSlow",
+    "2": "Slow",
+    "3": "vSlow+Slow",
+    "4": "Mid",
+    "6": "Slow+Mid",
+    "7": "vSlow+Slow+Mid",
+    "8": "Fast",
+    "9": "vSlow+Fast",
+    "10": "Slow+Fast",
+    "11": "vSlow+Slow+Fast",
+    "12": "Mid+Fast",
+    "13": "vSlow+Mid+Fast",
+    "14": "Slow+Mid+Fast",
+    "15": "vSlow+Slow+Mid+Fast"
+  },
+  "label_map_all": {
+    "0": "none",
+    "1": "vSlow",
+    "2": "Slow",
+    "3": "vSlow+Slow",
+    "4": "Mid",
+    "5": "vSlow+Mid",
+    "6": "Slow+Mid",
+    "7": "vSlow+Slow+Mid",
+    "8": "Fast",
+    "9": "vSlow+Fast",
+    "10": "Slow+Fast",
+    "11": "vSlow+Slow+Fast",
+    "12": "Mid+Fast",
+    "13": "vSlow+Mid+Fast",
+    "14": "Slow+Mid+Fast",
+    "15": "vSlow+Slow+Mid+Fast"
+  },
+  "files": {
+    "traces": "traces.npy",
+    "encoded_labels": "encoded_labels.npy",
+    "label_multi": "label_multi.npy",
+    "cluster_labels": "cluster_labels.npy",
+    "emb_mean": "emb_mean.npy",
+    "pca_xy": "pca_xy.npy",
+    "tsne_xy": "tsne_xy.npy",
+    "emb_seq": "emb_seq.npy",
+    "metadata": "metadata.parquet"
+  }
+}

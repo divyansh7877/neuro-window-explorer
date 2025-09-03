@@ -12,7 +12,6 @@ apps/nextjs-ui/public/*
 node_modules/
 
 # Ignore data and versioned artifacts
-/v*/
 data/
 export_code.py
 archived_datasets/
